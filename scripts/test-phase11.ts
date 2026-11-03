@@ -88,8 +88,8 @@ async function run() {
       `File src/${relPath} contains hardcoded 'http://localhost'`
     );
     assert.ok(
-      !content.includes("mongodb+srv://"),
-      `File src/${relPath} contains hardcoded MongoDB connection string`
+      !/mongodb(\+srv)?:\/\/[^/]+@/i.test(content),
+      `File src/${relPath} contains hardcoded MongoDB connection string with credentials`
     );
   }
   console.log("✓ Zero hardcoded localhost URLs or plaintext database credentials found in src/.\n");

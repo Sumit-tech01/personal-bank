@@ -1,6 +1,10 @@
 import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
+import {
+  connectToDatabase,
+  getLastMongoDiagnostic,
+  getMongoUri,
+} from "@/lib/mongodb";
 import { SyncRecordModel } from "@/models";
 
 export const dynamic = "force-dynamic";
@@ -81,7 +85,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!process.env.MONGODB_URI) {
+  if (!getMongoUri()) {
     return NextResponse.json({
       success: true,
       configured: false,
@@ -94,8 +98,14 @@ export async function GET(request: NextRequest) {
 
   const connection = await connectToDatabase();
   if (!connection) {
+    const diag = getLastMongoDiagnostic();
     return NextResponse.json(
-      { success: false, configured: true, error: "Cloud database is unavailable." },
+      {
+        success: false,
+        configured: true,
+        code: diag?.code || "ERR_DATABASE_UNAVAILABLE",
+        error: diag?.message || "Cloud database is unavailable.",
+      },
       { status: 503 }
     );
   }
@@ -154,7 +164,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!process.env.MONGODB_URI) {
+  if (!getMongoUri()) {
     return NextResponse.json({
       success: true,
       configured: false,
@@ -165,8 +175,14 @@ export async function POST(request: NextRequest) {
 
   const connection = await connectToDatabase();
   if (!connection) {
+    const diag = getLastMongoDiagnostic();
     return NextResponse.json(
-      { success: false, configured: true, error: "Cloud database is unavailable." },
+      {
+        success: false,
+        configured: true,
+        code: diag?.code || "ERR_DATABASE_UNAVAILABLE",
+        error: diag?.message || "Cloud database is unavailable.",
+      },
       { status: 503 }
     );
   }

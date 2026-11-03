@@ -670,9 +670,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCloudCollection(stats.collection);
         setCloudRecordsCount(stats.cloudRecordsCount);
         setCloudConfigured(true);
+        setLastSyncError(null);
       }
-    } catch {
-      // Graceful offline
+    } catch (err) {
+      if (err instanceof Error && err.message) {
+        setLastSyncError(err.message);
+      }
     }
   }, []);
 

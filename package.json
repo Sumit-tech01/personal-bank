@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "npx tsx scripts/test-workflows.ts && npx tsx scripts/test-phase4.ts && npx tsx scripts/test-phase5.ts && npx tsx scripts/test-phase6.ts && npx tsx scripts/test-phase7.ts && npx tsx scripts/test-phase8.ts && npx tsx scripts/test-phase9.ts && npx tsx scripts/test-phase10.ts && npx tsx scripts/test-cloud-sync-e2e.ts && npx tsx scripts/test-phase11.ts"
+    "test": "npx tsx scripts/test-workflows.ts && npx tsx scripts/test-phase4.ts && npx tsx scripts/test-phase5.ts && npx tsx scripts/test-phase6.ts && npx tsx scripts/test-phase7.ts && npx tsx scripts/test-phase8.ts && npx tsx scripts/test-phase9.ts && npx tsx scripts/test-phase10.ts && npx tsx scripts/test-cloud-sync-e2e.ts && npx tsx scripts/test-phase11.ts && npx tsx scripts/test-vercel-readiness.ts && npx tsx scripts/test-sync-diagnostics.ts"
   },
   "dependencies": {
     "idb": "^8.0.4",
