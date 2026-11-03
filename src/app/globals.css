@@ -3,25 +3,223 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --brand: #2f7d4f;
+  --canvas: #f5f7f3;
+  --ink: #17251b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+    background-color: var(--canvas);
+    font-size: 16px;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0;
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-feature-settings: "tnum" 1, "cv11" 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  button {
+    touch-action: manipulation;
+  }
+
+  ::selection {
+    background: rgba(47, 125, 79, 0.18);
+    color: #173f28;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(47, 125, 79, 0.65);
+    outline-offset: 2px;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .app-container {
+    @apply mx-auto w-full max-w-[560px] px-4 md:max-w-2xl md:px-6 lg:max-w-4xl;
+  }
+
+  .card {
+    @apply rounded-card border border-line bg-card shadow-card;
+  }
+
+  .card-flat {
+    @apply rounded-2xl border border-line bg-card;
+  }
+
+  .section-title {
+    @apply text-[17px] font-semibold tracking-[-0.01em] text-ink;
+  }
+
+  .label {
+    @apply mb-1.5 block text-[13px] font-semibold text-ink-secondary;
+  }
+
+  .input {
+    @apply h-12 w-full rounded-xl border border-line bg-white px-4 text-[16px] text-ink outline-none transition placeholder:text-ink-muted focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:bg-canvas disabled:text-ink-muted;
+  }
+
+  .select {
+    @apply h-12 w-full appearance-none rounded-xl border border-line bg-white px-4 pr-10 text-[16px] text-ink outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:bg-canvas;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235F6E63' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 1rem center;
+    background-repeat: no-repeat;
+  }
+
+  .textarea {
+    @apply min-h-[92px] w-full resize-none rounded-xl border border-line bg-white px-4 py-3 text-[16px] leading-6 text-ink outline-none transition placeholder:text-ink-muted focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10;
+  }
+
+  .btn {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-[15px] font-semibold transition active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 text-[15px] font-semibold text-white shadow-[0_10px_24px_-14px_rgba(47,125,79,0.75)] transition hover:bg-brand-700 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-line bg-white px-5 text-[15px] font-semibold text-ink transition hover:bg-canvas active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-ghost {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-[15px] font-semibold text-brand-700 transition hover:bg-brand-50 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-danger {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-negative px-5 text-[15px] font-semibold text-white transition hover:bg-[#A94743] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .chip {
+    @apply inline-flex h-10 items-center justify-center gap-1.5 rounded-full border border-line bg-white px-4 text-[14px] font-medium text-ink-secondary transition active:scale-[0.98];
+  }
+
+  .chip-active {
+    @apply border-brand-600 bg-brand-600 text-white;
+  }
+
+  .icon-button {
+    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink-secondary transition hover:bg-canvas active:scale-95;
+  }
+
+  .stat-label {
+    @apply text-[12px] font-medium text-ink-secondary;
+  }
+
+  .stat-value {
+    @apply text-[20px] font-semibold tracking-[-0.02em] text-ink;
+  }
+
+  .divider {
+    @apply h-px w-full bg-line;
+  }
+
+  .list-row {
+    @apply flex min-h-[64px] w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-canvas/70 active:bg-canvas;
+  }
+
+  .empty-card {
+    @apply rounded-2xl border border-dashed border-line-strong bg-white/60 px-5 py-8 text-center;
+  }
+
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .pb-nav {
+    padding-bottom: calc(108px + env(safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  .no-print,
+  nav,
+  button {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+  }
+
+  .card,
+  .card-flat {
+    border: 1px solid #ddd;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  .pb-nav {
+    padding-bottom: 0;
   }
 }
