@@ -50,6 +50,7 @@ export default function BackupPage() {
     refreshCloudStats,
     isOnline,
     notify,
+    t,
   } = useApp();
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -144,8 +145,8 @@ export default function BackupPage() {
   return (
     <div className="min-h-[100dvh] bg-canvas">
       <PageHeader
-        title="Backup and sync"
-        subtitle="Keep your records safe"
+        title={t("backup.title")}
+        subtitle={t("backup.subtitle")}
         backHref="/more"
       />
 
@@ -159,7 +160,7 @@ export default function BackupPage() {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-[14px] font-semibold text-ink">
-                  {cloudConfigured ? "MongoDB Atlas Cloud Sync" : "Saved on this device"}
+                  {cloudConfigured ? t("backup.mongoCloudSync") : t("backup.savedOnDevice")}
                 </h2>
                 <StatusPill label={syncLabel} tone={syncTone} dot />
               </div>
@@ -186,11 +187,11 @@ export default function BackupPage() {
               <p className="mt-1 text-[13px] font-semibold text-ink truncate">{cloudCollection}</p>
             </div>
             <div className="rounded-xl border border-line/70 bg-canvas/60 p-2.5">
-              <p className="text-[10.5px] font-medium text-ink-muted">Local Records</p>
+              <p className="text-[10.5px] font-medium text-ink-muted">{t("backup.localRecords")}</p>
               <p className="mt-1 text-[13px] font-semibold text-ink">{records.length}</p>
             </div>
             <div className="rounded-xl border border-line/70 bg-canvas/60 p-2.5">
-              <p className="text-[10.5px] font-medium text-ink-muted">Cloud Records</p>
+              <p className="text-[10.5px] font-medium text-ink-muted">{t("backup.cloudRecords")}</p>
               <p className="mt-1 text-[13px] font-semibold text-ink">
                 {cloudRecordsCount !== null ? cloudRecordsCount : "—"}
               </p>
@@ -201,20 +202,22 @@ export default function BackupPage() {
           <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-canvas/80 px-3 py-2 text-[11px] text-ink-secondary">
             <span>
               {lastSyncedAt
-                ? `Last sync: ${formatDate(lastSyncedAt.slice(0, 10))} at ${new Date(
-                    lastSyncedAt
-                  ).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}`
-                : "No cloud sync yet"}
+                ? t("backup.lastSync", {
+                    date: `${formatDate(lastSyncedAt.slice(0, 10))} ${new Date(
+                      lastSyncedAt
+                    ).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}`,
+                  })
+                : t("backup.noSyncYet")}
             </span>
             <div className="flex items-center gap-2">
               {pendingUploadsCount > 0 && (
                 <span className="font-medium text-amber">
-                  {pendingUploadsCount} pending upload{pendingUploadsCount === 1 ? "" : "s"}
+                  {t("backup.pendingUploads", { count: pendingUploadsCount })}
                 </span>
               )}
               {failedUploadsCount > 0 && (
                 <span className="font-medium text-negative">
-                  {failedUploadsCount} failed
+                  {t("backup.failedUploads", { count: failedUploadsCount })}
                 </span>
               )}
             </div>
@@ -235,7 +238,7 @@ export default function BackupPage() {
               className="btn-secondary mt-3 w-full"
             >
               <RefreshCw className={`h-4 w-4 ${syncStatus === "syncing" ? "animate-spin" : ""}`} />
-              {syncStatus === "syncing" ? "Syncing with MongoDB…" : "Sync now"}
+              {syncStatus === "syncing" ? t("backup.syncingWithCloud") : t("backup.syncNow")}
             </button>
           )}
           {!isOnline && (
@@ -253,8 +256,8 @@ export default function BackupPage() {
               <Download className="h-[18px] w-[18px]" />
             </span>
             <div>
-              <h2 className="text-[14px] font-semibold text-ink">Download a backup</h2>
-              <p className="text-[11.5px] text-ink-muted">A JSON file with every family & farm record</p>
+              <h2 className="text-[14px] font-semibold text-ink">{t("backup.downloadBackup")}</h2>
+              <p className="text-[11.5px] text-ink-muted">{t("backup.downloadBackupDesc")}</p>
             </div>
           </div>
           <p className="mt-3 text-[12px] leading-5 text-ink-secondary">
@@ -268,7 +271,7 @@ export default function BackupPage() {
             disabled={exporting}
           >
             {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileJson className="h-4 w-4" />}
-            {exporting ? "Preparing backup…" : "Download backup file"}
+            {exporting ? "Preparing backup…" : t("backup.downloadButton")}
           </button>
           {(lastExport || preferences.lastBackupAt) && (
             <p className="mt-2 flex items-center gap-1.5 text-[11px] text-positive">
@@ -291,8 +294,8 @@ export default function BackupPage() {
               <Upload className="h-[18px] w-[18px]" />
             </span>
             <div>
-              <h2 className="text-[14px] font-semibold text-ink">Restore a backup</h2>
-              <p className="text-[11.5px] text-ink-muted">Preview and restore records from backup</p>
+              <h2 className="text-[14px] font-semibold text-ink">{t("backup.restoreBackup")}</h2>
+              <p className="text-[11.5px] text-ink-muted">{t("backup.restoreBackupDesc")}</p>
             </div>
           </div>
           <p className="mt-3 text-[12px] leading-5 text-ink-secondary">
@@ -313,7 +316,7 @@ export default function BackupPage() {
             disabled={importing}
           >
             {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            {importing ? "Reading file…" : "Choose a backup file"}
+            {importing ? "Reading file…" : t("backup.chooseFile")}
           </button>
         </section>
 

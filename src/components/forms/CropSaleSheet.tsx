@@ -24,7 +24,7 @@ export default function CropSaleSheet({
   sale,
   defaultCropId,
 }: CropSaleSheetProps) {
-  const { crops, lands, saveCropSale, recordCropSalePayment, deleteCropSale, notify } = useApp();
+  const { crops, lands, saveCropSale, recordCropSalePayment, deleteCropSale, notify, t } = useApp();
 
   const [cropId, setCropId] = useState("");
   const [landId, setLandId] = useState("");
@@ -253,7 +253,7 @@ export default function CropSaleSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title={sale ? "Edit Crop Sale" : "Record Crop Sale"}
+      title={sale ? "Edit Crop Sale" : t("income.cropSale")}
       subtitle="Gross Sale = Quantity × Rate · Net Sale = Gross − Deductions"
       footer={
         <div className="flex gap-2.5">
@@ -270,7 +270,7 @@ export default function CropSaleSheet({
           )}
           <button type="button" className="btn-primary flex-1" onClick={save} disabled={busy}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            {busy ? "Saving…" : sale ? "Save changes" : "Save crop sale"}
+            {busy ? "…" : sale ? t("form.saveChanges") : t("common.save")}
           </button>
         </div>
       }

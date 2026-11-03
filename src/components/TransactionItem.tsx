@@ -9,7 +9,7 @@ import {
   Tractor,
 } from "lucide-react";
 import { formatINR } from "@/lib/money";
-import { formatDate } from "@/lib/dates";
+import { useApp } from "@/context/AppContext";
 import type { Transaction } from "@/lib/types";
 
 interface TransactionItemProps {
@@ -41,6 +41,7 @@ export default function TransactionItem({
   showDate = true,
   compact = false,
 }: TransactionItemProps) {
+  const { t, formatDate } = useApp();
   const isIncome = transaction.kind === "INCOME";
   const pending = isIncome && transaction.incomeStatus === "PENDING";
   const title = transaction.description || transaction.category;
@@ -68,13 +69,13 @@ export default function TransactionItem({
           <span className="truncate text-[14px] font-semibold text-ink">{title}</span>
           {pending && (
             <span className="shrink-0 rounded-full bg-amber-light px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-amber">
-              Pending
+              {t("common.pending")}
             </span>
           )}
         </span>
         <span className="mt-0.5 block truncate text-[11.5px] text-ink-muted">
           {showDate ? `${formatDate(transaction.date, "short")} · ` : ""}
-          {meta || "No category"}
+          {meta || t("common.noCategory")}
         </span>
       </span>
       <span className="shrink-0 text-right">
@@ -88,7 +89,7 @@ export default function TransactionItem({
         </span>
         {!compact && (
           <span className="mt-0.5 block text-[10.5px] text-ink-muted">
-            {isIncome ? "Money in" : "Money out"}
+            {isIncome ? t("dashboard.moneyIn") : t("dashboard.moneyOut")}
           </span>
         )}
       </span>

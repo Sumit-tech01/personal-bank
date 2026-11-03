@@ -7,13 +7,11 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Bell,
-  BellPlus,
   ChevronRight,
   CircleDollarSign,
   CreditCard,
   HandCoins,
   Home as HomeIcon,
-  Package,
   PiggyBank,
   Receipt,
   Scale,
@@ -33,7 +31,6 @@ import ReminderCard from "@/components/ReminderCard";
 import EmptyState from "@/components/ui/EmptyState";
 import PeriodFilter from "@/components/ui/PeriodFilter";
 import ProgressBar from "@/components/ui/ProgressBar";
-import StatusPill from "@/components/ui/StatusPill";
 import {
   expenseBreakdown,
   familyFinancialPosition,
@@ -69,11 +66,11 @@ export default function HomePage() {
     openAdd,
     completeReminder,
     reopenReminder,
+    t,
   } = useApp();
   const router = useRouter();
 
   const [range, setRange] = useState<DateRange>(() => rangeForPreset("THIS_MONTH"));
-  const [selectedMemberId, setSelectedMemberId] = useState<string>("ALL");
 
   // Phase 9: Unified Metrics computation
   const metrics = useMemo(
@@ -169,24 +166,24 @@ export default function HomePage() {
               {formatHomeDate()}
             </p>
             <h1 className="mt-0.5 truncate text-[24px] font-semibold tracking-[-0.035em] text-ink">
-              Personal Bank
+              {t("app.name")}
             </h1>
             <p className="mt-0.5 truncate text-[12px] text-ink-secondary">
-              Hello, {account?.name?.split(" ")[0] ?? "friend"} · Your Family. Your Farm. Your Finances.
+              {t("dashboard.helloUser", { name: account?.name?.split(" ")[0] ?? "friend" })} · {t("app.tagline")}
             </p>
           </div>
           <Link
             href="/reconciliation"
             className="icon-button relative h-10 w-10 text-brand-700 hover:bg-brand-50"
-            aria-label="Reconciliation Center"
-            title="Reconciliation Center"
+            aria-label={t("reconciliation.title")}
+            title={t("reconciliation.title")}
           >
             <ShieldCheck className="h-[20px] w-[20px]" />
           </Link>
           <Link
             href="/reminders"
             className="icon-button relative h-10 w-10"
-            aria-label="Reminders and notifications"
+            aria-label={t("reminders.title")}
           >
             <Bell className="h-[18px] w-[18px]" />
             {attention > 0 && (
@@ -198,7 +195,7 @@ export default function HomePage() {
           <Link
             href="/more"
             className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 text-[13px] font-semibold text-brand-800"
-            aria-label="Profile and more"
+            aria-label={t("nav.more")}
           >
             {account?.name?.trim().charAt(0).toUpperCase() ?? "S"}
           </Link>
@@ -219,9 +216,9 @@ export default function HomePage() {
         {/* Period Selector */}
         <section className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <h2 className="section-title text-[13px]">Financial Period</h2>
+            <h2 className="section-title text-[13px]">{t("period.chooseDateRange")}</h2>
             <span className="text-[11px] text-ink-muted">
-              Closing: {formatINR(metrics.periodClosingBalancePaise)}
+              {t("reconciliation.closingBalance")}: {formatINR(metrics.periodClosingBalancePaise)}
             </span>
           </div>
           <PeriodFilter
@@ -236,16 +233,16 @@ export default function HomePage() {
         <section className="space-y-2">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="section-title">Financial Position</h2>
+              <h2 className="section-title">{t("dashboard.netWorthOverview")}</h2>
               <p className="text-[11.5px] text-ink-muted">
-                Complete overview for {range.label.toLowerCase()}
+                {range.label}
               </p>
             </div>
             <Link
               href="/reports"
               className="flex items-center gap-0.5 text-[12px] font-semibold text-brand-700"
             >
-              Reports
+              {t("nav.reports")}
               <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -256,13 +253,13 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5 text-brand-700">
                 <Wallet className="h-4 w-4" />
                 <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
-                  Cash on Hand
+                  {t("dashboard.availableBalance")}
                 </span>
               </div>
               <p className="mt-1 text-[17px] font-bold tracking-tight text-ink">
                 {formatINR(metrics.currentCashBalancePaise)}
               </p>
-              <p className="mt-0.5 text-[10px] text-ink-muted">Lifetime cash balance</p>
+              <p className="mt-0.5 text-[10px] text-ink-muted">{t("dashboard.availableBalance")}</p>
             </div>
 
             {/* 2. Total Income Received */}
@@ -270,7 +267,7 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5 text-positive">
                 <ArrowDownLeft className="h-4 w-4" />
                 <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
-                  Money In
+                  {t("dashboard.moneyIn")}
                 </span>
               </div>
               <p className="mt-1 text-[17px] font-bold tracking-tight text-positive">
@@ -278,8 +275,8 @@ export default function HomePage() {
               </p>
               <p className="mt-0.5 text-[10px] text-ink-muted">
                 {metrics.incomePendingPaise > 0
-                  ? `${formatINR(metrics.incomePendingPaise)} pending`
-                  : "Received in period"}
+                  ? `${formatINR(metrics.incomePendingPaise)} ${t("common.pending")}`
+                  : t("common.received")}
               </p>
             </div>
 
@@ -288,7 +285,7 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5 text-negative">
                 <ArrowUpRight className="h-4 w-4" />
                 <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
-                  Money Out
+                  {t("dashboard.moneyOut")}
                 </span>
               </div>
               <p className="mt-1 text-[17px] font-bold tracking-tight text-negative">
@@ -296,8 +293,8 @@ export default function HomePage() {
               </p>
               <p className="mt-0.5 text-[10px] text-ink-muted">
                 {metrics.expensesPendingPaise > 0
-                  ? `${formatINR(metrics.expensesPendingPaise)} unpaid labour`
-                  : "Paid in period"}
+                  ? `${formatINR(metrics.expensesPendingPaise)} ${t("labour.unpaid")}`
+                  : t("labour.paid")}
               </p>
             </div>
 
@@ -306,7 +303,7 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5 text-brand-700">
                 <PiggyBank className="h-4 w-4" />
                 <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
-                  Net Cashflow
+                  {t("reports.cashFlow")}
                 </span>
               </div>
               <p
@@ -317,7 +314,7 @@ export default function HomePage() {
                 {metrics.netCashflowPaise >= 0 ? "+" : "−"}
                 {formatINR(metrics.netCashflowPaise, { absolute: true })}
               </p>
-              <p className="mt-0.5 text-[10px] text-ink-muted">Period cash surplus</p>
+              <p className="mt-0.5 text-[10px] text-ink-muted">{t("reports.netSavings")}</p>
             </div>
 
             {/* 5. Outstanding Receivables */}
@@ -325,13 +322,13 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5 text-sky">
                 <HandCoins className="h-4 w-4" />
                 <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
-                  Receivables
+                  {t("dashboard.receivables")}
                 </span>
               </div>
               <p className="mt-1 text-[17px] font-bold tracking-tight text-sky">
                 {formatINR(metrics.totalReceivablesPaise)}
               </p>
-              <p className="mt-0.5 text-[10px] text-ink-muted">Lent & pending sales</p>
+              <p className="mt-0.5 text-[10px] text-ink-muted">{t("dashboard.receivables")}</p>
             </div>
 
             {/* 6. Outstanding Payables */}
@@ -339,13 +336,13 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5 text-amber">
                 <CreditCard className="h-4 w-4" />
                 <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
-                  Payables
+                  {t("dashboard.payables")}
                 </span>
               </div>
               <p className="mt-1 text-[17px] font-bold tracking-tight text-amber">
                 {formatINR(metrics.totalPayablesPaise)}
               </p>
-              <p className="mt-0.5 text-[10px] text-ink-muted">Loans, suppliers, labour</p>
+              <p className="mt-0.5 text-[10px] text-ink-muted">{t("dashboard.payables")}</p>
             </div>
 
             {/* 7. Borrowed Loan Balance */}
@@ -353,13 +350,13 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5 text-negative">
                 <TrendingDown className="h-4 w-4" />
                 <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
-                  Borrowed Debt
+                  {t("loans.borrowedTitle")}
                 </span>
               </div>
               <p className="mt-1 text-[17px] font-bold tracking-tight text-negative">
                 {formatINR(metrics.borrowedPrincipalOutstandingPaise)}
               </p>
-              <p className="mt-0.5 text-[10px] text-ink-muted">Principal remaining</p>
+              <p className="mt-0.5 text-[10px] text-ink-muted">{t("loans.outstanding")}</p>
             </div>
 
             {/* 8. Money Lent Outstanding */}
@@ -367,13 +364,13 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5 text-positive">
                 <TrendingUp className="h-4 w-4" />
                 <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
-                  Money Lent
+                  {t("loans.lentTitle")}
                 </span>
               </div>
               <p className="mt-1 text-[17px] font-bold tracking-tight text-positive">
                 {formatINR(metrics.lentPrincipalOutstandingPaise)}
               </p>
-              <p className="mt-0.5 text-[10px] text-ink-muted">Owed to family</p>
+              <p className="mt-0.5 text-[10px] text-ink-muted">{t("dashboard.receivables")}</p>
             </div>
           </div>
         </section>
@@ -383,10 +380,10 @@ export default function HomePage() {
           <div className="flex items-center justify-between">
             <div>
               <span className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-brand-800">
-                Asset & Liability Position
+                {t("dashboard.netWorth")}
               </span>
               <h3 className="mt-0.5 text-[22px] font-bold tracking-tight text-brand-950">
-                Net Worth: {formatINR(metrics.netWorthPaise)}
+                {t("dashboard.netWorth")}: {formatINR(metrics.netWorthPaise)}
               </h3>
             </div>
             <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-100 text-brand-800">
@@ -397,23 +394,23 @@ export default function HomePage() {
           <div className="mt-3 grid grid-cols-2 gap-3 pt-2">
             <div className="rounded-xl border border-brand-200/70 bg-white/80 p-3">
               <p className="text-[11px] font-semibold text-positive uppercase tracking-wide">
-                Total Assets · {formatINR(metrics.totalAssetsPaise)}
+                {t("dashboard.netWorth")} · {formatINR(metrics.totalAssetsPaise)}
               </p>
               <div className="mt-2 space-y-1 text-[11px] text-ink-secondary">
                 <div className="flex justify-between">
-                  <span>Cash on Hand</span>
+                  <span>{t("dashboard.availableBalance")}</span>
                   <span className="font-semibold text-ink">{formatINR(metrics.currentCashBalancePaise)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Money Lent</span>
+                  <span>{t("loans.lentTitle")}</span>
                   <span className="font-semibold text-ink">{formatINR(metrics.lentPrincipalOutstandingPaise)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Vehicle Assets</span>
+                  <span>{t("vehicles.title")}</span>
                   <span className="font-semibold text-ink">{formatINR(metrics.vehicleAssetValuePaise)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Inventory Stock</span>
+                  <span>{t("inventory.title")}</span>
                   <span className="font-semibold text-ink">{formatINR(metrics.inventoryValuationPaise)}</span>
                 </div>
               </div>
@@ -421,50 +418,47 @@ export default function HomePage() {
 
             <div className="rounded-xl border border-line bg-white/80 p-3">
               <p className="text-[11px] font-semibold text-negative uppercase tracking-wide">
-                Total Liabilities · {formatINR(metrics.totalLiabilitiesPaise)}
+                {t("dashboard.payables")} · {formatINR(metrics.totalLiabilitiesPaise)}
               </p>
               <div className="mt-2 space-y-1 text-[11px] text-ink-secondary">
                 <div className="flex justify-between">
-                  <span>Borrowed Loans</span>
+                  <span>{t("loans.borrowedTitle")}</span>
                   <span className="font-semibold text-ink">{formatINR(metrics.borrowedPrincipalOutstandingPaise)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Supplier Payables</span>
+                  <span>{t("dashboard.payables")}</span>
                   <span className="font-semibold text-ink">{formatINR(metrics.supplierPayablesPaise)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Pending Labour</span>
+                  <span>{t("labour.unpaid")}</span>
                   <span className="font-semibold text-ink">{formatINR(metrics.labourPayablesPaise)}</span>
                 </div>
               </div>
             </div>
           </div>
-          <p className="mt-2.5 text-[10px] text-ink-muted">
-            Accurate, non-duplicative accounting: vehicles recorded at purchase value, stock at cost, and loans exclude double counts.
-          </p>
         </section>
 
         {/* Where Money Went (Spending Breakdown) */}
         <section>
           <div className="mb-2 flex items-center justify-between">
             <div>
-              <h2 className="section-title">Where Money Went</h2>
+              <h2 className="section-title">{t("dashboard.monthlySpending")}</h2>
               <p className="text-[11.5px] text-ink-muted">
-                {formatINR(spending.totalPaise)} total paid in {range.label.toLowerCase()}
+                {formatINR(spending.totalPaise)} · {range.label}
               </p>
             </div>
             <Link
               href="/expenses"
               className="flex items-center gap-0.5 text-[12px] font-semibold text-brand-700"
             >
-              All expenses
+              {t("common.viewAll")}
               <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             <ExpenseCategoryCard
-              label="Household"
+              label={t("dashboard.household")}
               amountPaise={spending.homePaise}
               totalPaise={spending.totalPaise}
               icon={<HomeIcon className="h-[18px] w-[18px]" />}
@@ -472,7 +466,7 @@ export default function HomePage() {
               href="/expenses?group=HOME"
             />
             <ExpenseCategoryCard
-              label="Farm"
+              label={t("dashboard.farming")}
               amountPaise={farmExpenseTotalPaise}
               totalPaise={spending.totalPaise}
               icon={<Sprout className="h-[18px] w-[18px]" />}
@@ -480,7 +474,7 @@ export default function HomePage() {
               href="/expenses?group=FARM"
             />
             <ExpenseCategoryCard
-              label="Paid Labour"
+              label={t("dashboard.labour")}
               amountPaise={spending.labourPaise}
               totalPaise={spending.totalPaise}
               icon={<Users className="h-[18px] w-[18px]" />}
@@ -488,7 +482,7 @@ export default function HomePage() {
               href="/labour"
             />
             <ExpenseCategoryCard
-              label="Vehicles"
+              label={t("dashboard.vehicles")}
               amountPaise={spending.vehiclePaise}
               totalPaise={spending.totalPaise}
               icon={<Tractor className="h-[18px] w-[18px]" />}
@@ -496,7 +490,7 @@ export default function HomePage() {
               href="/expenses?group=VEHICLE"
             />
             <ExpenseCategoryCard
-              label="Financing / Interest"
+              label={t("loans.borrowedTitle")}
               amountPaise={spending.financingPaise}
               totalPaise={spending.totalPaise}
               icon={<CreditCard className="h-[18px] w-[18px]" />}
@@ -504,7 +498,7 @@ export default function HomePage() {
               href="/loans"
             />
             <ExpenseCategoryCard
-              label="Other Expenses"
+              label={t("dashboard.other")}
               amountPaise={spending.otherPaise}
               totalPaise={spending.totalPaise}
               icon={<CircleDollarSign className="h-[18px] w-[18px]" />}
@@ -518,16 +512,16 @@ export default function HomePage() {
         <section className="rounded-card border border-line bg-white p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="section-title">Where Money Came From</h2>
+              <h2 className="section-title">{t("dashboard.incomeBreakdown")}</h2>
               <p className="text-[11.5px] text-ink-muted">
-                {formatINR(income.totalReceivedPaise)} received in {range.label.toLowerCase()}
+                {formatINR(income.totalReceivedPaise)} · {range.label}
               </p>
             </div>
             <Link
               href="/transactions?kind=INCOME"
               className="flex items-center gap-0.5 text-[12px] font-semibold text-brand-700"
             >
-              Income records
+              {t("income.title")}
               <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -535,7 +529,7 @@ export default function HomePage() {
           <div className="mt-3 space-y-3">
             {/* Crop Sales */}
             <IncomeRow
-              label="Crop Sales"
+              label={t("income.cropSales")}
               receivedPaise={income.cropSalesReceivedPaise}
               pendingPaise={income.cropSalesPendingPaise}
               totalReceivedPaise={income.totalReceivedPaise}
@@ -543,42 +537,42 @@ export default function HomePage() {
 
             {/* Milk & Produce */}
             <IncomeRow
-              label="Milk & Produce Sales"
+              label={t("income.milkSales")}
               receivedPaise={income.milkAndProducePaise}
               totalReceivedPaise={income.totalReceivedPaise}
             />
 
             {/* Tractor Rental */}
             <IncomeRow
-              label="Tractor & Machinery Rental"
+              label={t("income.tractorRental")}
               receivedPaise={income.tractorAndRentalPaise}
               totalReceivedPaise={income.totalReceivedPaise}
             />
 
             {/* Household Salary */}
             <IncomeRow
-              label="Household Salary / Wages"
+              label={t("income.householdIncome")}
               receivedPaise={income.householdSalaryPaise}
               totalReceivedPaise={income.totalReceivedPaise}
             />
 
             {/* Business Income */}
             <IncomeRow
-              label="Business & Trade"
+              label={t("income.household")}
               receivedPaise={income.businessIncomePaise}
               totalReceivedPaise={income.totalReceivedPaise}
             />
 
             {/* Interest Received */}
             <IncomeRow
-              label="Interest Received"
+              label={t("income.title")}
               receivedPaise={income.interestReceivedPaise}
               totalReceivedPaise={income.totalReceivedPaise}
             />
 
             {/* Other Income */}
             <IncomeRow
-              label="Other Farming & Personal Income"
+              label={t("income.agriProducts")}
               receivedPaise={income.otherIncomePaise}
               totalReceivedPaise={income.totalReceivedPaise}
             />
@@ -586,7 +580,7 @@ export default function HomePage() {
 
           {income.totalReceivedPaise === 0 && income.totalPendingPaise === 0 && (
             <p className="mt-2 rounded-xl bg-canvas p-3 text-[11.5px] text-ink-muted">
-              No income recorded in this period.
+              {t("income.noIncome")}
             </p>
           )}
         </section>
@@ -595,9 +589,9 @@ export default function HomePage() {
         <section className="rounded-card border border-line bg-white p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="section-title">Family Financial Position</h2>
+              <h2 className="section-title">{t("family.title")}</h2>
               <p className="text-[11.5px] text-ink-muted">
-                Household income, spending & member tracking
+                {t("family.subtitle")}
               </p>
             </div>
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
@@ -607,25 +601,25 @@ export default function HomePage() {
 
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             <div className="rounded-xl bg-canvas p-2.5">
-              <p className="text-[10.5px] uppercase font-semibold text-ink-muted">Household In</p>
+              <p className="text-[10.5px] uppercase font-semibold text-ink-muted">{t("income.household")}</p>
               <p className="text-[14px] font-bold text-positive">
                 +{formatINR(family.householdIncomePaise)}
               </p>
             </div>
             <div className="rounded-xl bg-canvas p-2.5">
-              <p className="text-[10.5px] uppercase font-semibold text-ink-muted">Household Out</p>
+              <p className="text-[10.5px] uppercase font-semibold text-ink-muted">{t("expenses.homeGroup")}</p>
               <p className="text-[14px] font-bold text-negative">
                 −{formatINR(family.householdExpensesPaise)}
               </p>
             </div>
             <div className="rounded-xl bg-canvas p-2.5">
-              <p className="text-[10.5px] uppercase font-semibold text-ink-muted">Personal Lent</p>
+              <p className="text-[10.5px] uppercase font-semibold text-ink-muted">{t("loans.lentTitle")}</p>
               <p className="text-[14px] font-bold text-sky">
                 {formatINR(family.familyReceivablesPaise)}
               </p>
             </div>
             <div className="rounded-xl bg-canvas p-2.5">
-              <p className="text-[10.5px] uppercase font-semibold text-ink-muted">Personal Loans</p>
+              <p className="text-[10.5px] uppercase font-semibold text-ink-muted">{t("loans.borrowedTitle")}</p>
               <p className="text-[14px] font-bold text-amber">
                 {formatINR(family.familyLiabilitiesPaise)}
               </p>
@@ -635,7 +629,7 @@ export default function HomePage() {
           {family.memberBreakdown.length > 0 && (
             <div className="mt-3 border-t border-line/60 pt-3">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted mb-1.5">
-                Family Member Spending
+                {t("family.title")}
               </p>
               <div className="space-y-1.5">
                 {family.memberBreakdown.map((m) => (
@@ -659,46 +653,46 @@ export default function HomePage() {
 
         {/* Quick Actions */}
         <section>
-          <h2 className="section-title mb-2">Quick Actions</h2>
+          <h2 className="section-title mb-2">{t("dashboard.quickActions")}</h2>
           <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
             <QuickActionButton
-              label="Money In"
-              hint="Income"
+              label={t("income.title")}
+              hint={t("dashboard.moneyIn")}
               icon={<ArrowDownLeft className="h-4 w-4" />}
               tone="positive"
               onClick={() => openAdd("INCOME")}
             />
             <QuickActionButton
-              label="Home Expense"
-              hint="Bills, grocery"
+              label={t("expenses.homeGroup")}
+              hint={t("dashboard.moneyOut")}
               icon={<Receipt className="h-4 w-4" />}
               tone="negative"
               onClick={() => openAdd("HOME_EXPENSE")}
             />
             <QuickActionButton
-              label="Farm Expense"
-              hint="Seeds, fertilizer"
+              label={t("expenses.farmGroup")}
+              hint={t("farm.title")}
               icon={<Sprout className="h-4 w-4" />}
               tone="brand"
               onClick={() => openAdd("FARM_EXPENSE")}
             />
             <QuickActionButton
-              label="Vehicle"
-              hint="Fuel, repair"
+              label={t("expenses.vehicleGroup")}
+              hint={t("vehicles.title")}
               icon={<Tractor className="h-4 w-4" />}
               tone="sky"
               onClick={() => openAdd("VEHICLE_EXPENSE")}
             />
             <QuickActionButton
-              label="Labour"
-              hint="Wages"
+              label={t("expenses.labourGroup")}
+              hint={t("labour.title")}
               icon={<Users className="h-4 w-4" />}
               tone="amber"
               onClick={() => openAdd("LABOUR")}
             />
             <QuickActionButton
-              label="Loan / Lent"
-              hint="Borrow or lend"
+              label={t("loans.title")}
+              hint={t("loans.subtitle")}
               icon={<HandCoins className="h-4 w-4" />}
               tone="brand"
               onClick={() => openAdd("LOAN")}
@@ -709,17 +703,16 @@ export default function HomePage() {
         {/* First Record Empty State */}
         {!hasAnyRecords && (
           <section className="rounded-card border border-brand-200 bg-brand-50 p-4">
-            <p className="text-[14px] font-semibold text-brand-900">Start with one real record</p>
+            <p className="text-[14px] font-semibold text-brand-900">{t("dashboard.addFirstRecord")}</p>
             <p className="mt-1 text-[12px] leading-5 text-brand-800/80">
-              Add money you received, an expense you paid, or stock you purchased. Your family
-              dashboard, farm intelligence and net worth reports will build automatically from your real entries.
+              {t("dashboard.addReminderHint")}
             </p>
             <button
               type="button"
               onClick={() => openAdd("INCOME")}
               className="btn-primary mt-3 h-10 px-4 text-[12.5px]"
             >
-              Add first record
+              {t("dashboard.addFirstRecord")}
             </button>
           </section>
         )}
@@ -728,16 +721,16 @@ export default function HomePage() {
         <section className="overflow-hidden rounded-card border border-line bg-white">
           <div className="flex items-center justify-between px-4 pb-2 pt-4">
             <div>
-              <h2 className="section-title">Latest Financial Activity</h2>
+              <h2 className="section-title">{t("dashboard.activityFeed")}</h2>
               <p className="text-[11.5px] text-ink-muted">
-                Unified live feed across cash, sales, loans & inventory
+                {t("transactions.subtitle")}
               </p>
             </div>
             <Link
               href="/transactions"
               className="flex items-center gap-0.5 text-[12px] font-semibold text-brand-700"
             >
-              View ledger
+              {t("common.viewAll")}
               <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -746,9 +739,9 @@ export default function HomePage() {
             <div className="px-4 pb-4">
               <EmptyState
                 compact
-                title="No activity yet"
-                message="Income, expenses, crop sales, loan repayments and stock usages will appear here."
-                actionLabel="Add a record"
+                title={t("dashboard.noActivity")}
+                message={t("dashboard.noActivity")}
+                actionLabel={t("nav.addRecord")}
                 onAction={() => openAdd()}
               />
             </div>
@@ -794,7 +787,7 @@ export default function HomePage() {
                       {formatINR(item.amountPaise)}
                     </p>
                     {item.isPending && (
-                      <span className="text-[9.5px] font-medium text-amber">Pending</span>
+                      <span className="text-[9.5px] font-medium text-amber">{t("common.pending")}</span>
                     )}
                   </div>
                 </button>
@@ -807,23 +800,23 @@ export default function HomePage() {
         <section className="rounded-card border border-line bg-white p-4">
           <div className="mb-2 flex items-center justify-between">
             <div>
-              <h2 className="section-title">Upcoming Reminders</h2>
-              <p className="text-[11.5px] text-ink-muted">Bills, EMIs, and crop dates</p>
+              <h2 className="section-title">{t("reminders.upcoming")}</h2>
+              <p className="text-[11.5px] text-ink-muted">{t("dashboard.billsEmisAndCropDates")}</p>
             </div>
             <Link
               href="/reminders"
               className="flex items-center gap-0.5 text-[12px] font-semibold text-brand-700"
             >
-              View all
+              {t("common.viewAll")}
               <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
           {buckets.next.length === 0 ? (
             <EmptyState
               compact
-              title="Nothing coming up"
-              message="Add a reminder for a bill, labour payment, crop task or loan EMI."
-              actionLabel="Add reminder"
+              title={t("dashboard.nothingComingUp")}
+              message={t("dashboard.addReminderHint")}
+              actionLabel={t("dashboard.addReminder")}
               onAction={() => openAdd("REMINDER")}
             />
           ) : (

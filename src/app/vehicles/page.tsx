@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState } from "react";
 import {
-  AlertCircle,
   Bike,
   CalendarClock,
   Car,
@@ -20,14 +19,14 @@ import VehicleSheet from "@/components/forms/VehicleSheet";
 import VehicleServiceSheet from "@/components/forms/VehicleServiceSheet";
 import TractorWorkLogSheet from "@/components/forms/TractorWorkLogSheet";
 import { vehicleFinancials, vehiclesDashboardStats } from "@/lib/finance";
-import { formatDate, toISODate, todayISO } from "@/lib/dates";
+import { toISODate, todayISO } from "@/lib/dates";
 import { formatINR } from "@/lib/money";
 import type { VehicleType } from "@/lib/types";
 
 type FilterType = "ALL" | VehicleType;
 
 export default function VehiclesPage() {
-  const { vehicles, transactions, loans, openAdd } = useApp();
+  const { vehicles, transactions, loans, openAdd, t, formatDate } = useApp();
   const [vehicleSheetOpen, setVehicleSheetOpen] = useState(false);
   const [serviceSheetOpen, setServiceSheetOpen] = useState(false);
   const [tractorLogOpen, setTractorLogOpen] = useState(false);
@@ -116,8 +115,8 @@ export default function VehiclesPage() {
   return (
     <div className="min-h-[100dvh] bg-canvas pb-20">
       <PageHeader
-        title="Vehicles & Assets"
-        subtitle="Tractor, car, bike and asset management"
+        title={t("vehicles.title")}
+        subtitle={t("vehicles.subtitle")}
         backHref="/more"
         right={
           <button
@@ -126,7 +125,7 @@ export default function VehiclesPage() {
             className="flex h-10 items-center gap-1.5 rounded-full bg-brand-600 px-3.5 text-[12px] font-semibold text-white shadow-sm transition active:scale-95"
           >
             <Plus className="h-4 w-4" />
-            Add
+            {t("common.add")}
           </button>
         }
       />
@@ -140,75 +139,59 @@ export default function VehiclesPage() {
                 <Tractor className="h-5 w-5" />
               </span>
               <div>
-                <h2 className="text-[14px] font-semibold text-ink">Vehicle Dashboard</h2>
-                <p className="text-[11.5px] text-ink-muted">
-                  {stats.totalVehicles} registered vehicle{stats.totalVehicles === 1 ? "" : "s"}
+                <h2 className="text-[14px] font-semibold text-ink">{t("vehicles.title")}</h2>
+                <p className="text-[11px] text-ink-muted">
+                  {vehicles.length} {t("common.entries", { count: vehicles.length })}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="mt-3.5 grid grid-cols-2 gap-2.5">
             <StatCard
-              label="Purchase Value"
+              label={t("vehicles.totalCost")}
               value={formatINR(stats.totalPurchaseValuePaise)}
-              sub="Asset inventory"
+              hint={`${stats.totalVehicles} active`}
+              tone="brand"
             />
             <StatCard
-              label="Total Expenses"
-              value={formatINR(stats.totalExpensesPaise)}
-              tone="negative"
-              sub="Lifetime vehicle costs"
+              label={t("income.tractorRental")}
+              value={formatINR(stats.totalRentalIncomePaise)}
+              hint="Rental income"
+              tone="positive"
             />
             <StatCard
-              label="This Month"
-              value={formatINR(stats.monthlyExpensesPaise)}
-              tone="amber"
-              sub="Current month spend"
-            />
-            <StatCard
-              label="Fuel Expenses"
+              label={t("vehicles.fuelExpenses")}
               value={formatINR(stats.totalFuelPaise)}
-              sub="Petrol, diesel & CNG"
+              hint="Fuel expenses"
+              tone="amber"
             />
             <StatCard
-              label="Maintenance"
+              label={t("vehicles.services")}
               value={formatINR(stats.totalMaintenancePaise)}
-              sub="Repairs & servicing"
-            />
-            <StatCard
-              label="Outstanding Loans"
-              value={formatINR(stats.outstandingLoansPaise)}
-              tone={stats.outstandingLoansPaise > 0 ? "negative" : "neutral"}
-              sub="Remaining EMI balance"
+              hint="Maintenance & repairs"
+              tone="neutral"
             />
           </div>
-
-          {stats.totalRentalIncomePaise > 0 && (
-            <div className="mt-2.5 flex items-center justify-between rounded-xl bg-positive-light/40 px-3.5 py-2 text-[12px]">
-              <span className="text-positive-dark font-medium">Tractor Rental Income</span>
-              <span className="font-semibold text-positive-dark">
-                {formatINR(stats.totalRentalIncomePaise)}
-              </span>
-            </div>
-          )}
         </section>
 
-        {/* Quick Actions Strip */}
-        <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <button
-            type="button"
-            onClick={() => setVehicleSheetOpen(true)}
-            className="flex items-center gap-2 rounded-2xl border border-line bg-white p-3 text-left transition hover:border-brand-300 active:scale-[0.99]"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
-              <Plus className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-[12.5px] font-semibold text-ink">Add Vehicle</p>
-              <p className="text-[10.5px] text-ink-muted">Register asset</p>
-            </div>
-          </button>
+        {/* 3 Quick Action Buttons */}
+        <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          {hasTractor && (
+            <button
+              type="button"
+              onClick={() => setTractorLogOpen(true)}
+              className="flex items-center gap-2 rounded-2xl border border-line bg-white p-3 text-left transition hover:border-brand-300 active:scale-[0.99]"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                <Tractor className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[12.5px] font-semibold text-ink">{t("vehicles.logTractorWork")}</p>
+                <p className="text-[10.5px] text-ink-muted">{t("vehicles.hours")}</p>
+              </div>
+            </button>
+          )}
 
           <button
             type="button"
@@ -220,41 +203,10 @@ export default function VehiclesPage() {
               <Wrench className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <p className="text-[12.5px] font-semibold text-ink">Log Service</p>
-              <p className="text-[10.5px] text-ink-muted">Maintenance</p>
+              <p className="text-[12.5px] font-semibold text-ink">{t("vehicles.addService")}</p>
+              <p className="text-[10.5px] text-ink-muted">{t("vehicles.services")}</p>
             </div>
           </button>
-
-          {hasTractor ? (
-            <button
-              type="button"
-              onClick={() => setTractorLogOpen(true)}
-              className="flex items-center gap-2 rounded-2xl border border-line bg-white p-3 text-left transition hover:border-brand-300 active:scale-[0.99]"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-positive-light text-positive">
-                <Tractor className="h-4 w-4" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[12.5px] font-semibold text-ink">Tractor Work</p>
-                <p className="text-[10.5px] text-ink-muted">Hours & rental</p>
-              </div>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => openAdd("VEHICLE_EXPENSE")}
-              disabled={vehicles.length === 0}
-              className="flex items-center gap-2 rounded-2xl border border-line bg-white p-3 text-left transition hover:border-brand-300 active:scale-[0.99] disabled:opacity-50"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-light text-sky">
-                <Fuel className="h-4 w-4" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[12.5px] font-semibold text-ink">Add Expense</p>
-                <p className="text-[10.5px] text-ink-muted">Fuel & repairs</p>
-              </div>
-            </button>
-          )}
 
           {hasTractor && (
             <button
@@ -267,8 +219,8 @@ export default function VehiclesPage() {
                 <Fuel className="h-4 w-4" />
               </span>
               <div className="min-w-0">
-                <p className="text-[12.5px] font-semibold text-ink">Add Expense</p>
-                <p className="text-[10.5px] text-ink-muted">Fuel & repairs</p>
+                <p className="text-[12.5px] font-semibold text-ink">{t("vehicles.addFuel")}</p>
+                <p className="text-[10.5px] text-ink-muted">{t("vehicles.fuelExpenses")}</p>
               </div>
             </button>
           )}
@@ -280,7 +232,7 @@ export default function VehiclesPage() {
             <div className="flex items-center gap-2">
               <CalendarClock className="h-4 w-4 text-amber" />
               <h3 className="text-[12.5px] font-semibold text-ink">
-                Vehicle Reminders & Paper Expiries ({reminders.length})
+                {t("reminders.title")} ({reminders.length})
               </h3>
             </div>
             <div className="mt-2 space-y-1.5">
@@ -298,7 +250,7 @@ export default function VehiclesPage() {
                       rem.isOverdue ? "text-negative" : "text-amber-dark"
                     }`}
                   >
-                    {rem.isOverdue ? "Expired " : "Due "} {formatDate(rem.date)}
+                    {rem.isOverdue ? `${t("reminders.overdue")} ` : `${t("reminders.upcoming")} `} {formatDate(rem.date)}
                   </span>
                 </div>
               ))}
@@ -322,7 +274,7 @@ export default function VehiclesPage() {
                     : "border border-line bg-white text-ink-secondary hover:bg-canvas"
                 }`}
               >
-                <span>{tab === "ALL" ? "All" : tab === "Bike" ? "Motorcycle/Bike" : tab}</span>
+                <span>{tab === "ALL" ? t("common.all") : tab}</span>
                 <span
                   className={`rounded-full px-1.5 py-0.2 text-[10px] ${
                     active ? "bg-white/20 text-white" : "bg-canvas text-ink-muted"
@@ -339,9 +291,9 @@ export default function VehiclesPage() {
         {filteredRows.length === 0 ? (
           <EmptyState
             icon={<Car className="h-5 w-5" />}
-            title={activeFilter === "ALL" ? "No vehicles yet" : `No ${activeFilter.toLowerCase()}s found`}
-            message="Register your tractor, car, motorcycle, or other vehicle to track fuel, repairs, maintenance, and papers."
-            actionLabel="Add Vehicle"
+            title={t("vehicles.noVehicles")}
+            message={t("vehicles.subtitle")}
+            actionLabel={t("vehicles.addVehicle")}
             onAction={() => setVehicleSheetOpen(true)}
           />
         ) : (
@@ -351,11 +303,6 @@ export default function VehiclesPage() {
             ))}
           </section>
         )}
-
-        <div className="rounded-2xl bg-canvas px-4 py-3 text-[11.5px] leading-5 text-ink-secondary">
-          Vehicle expenses and maintenance are isolated per vehicle so you can track the true cost
-          of ownership and operation without mixing them into general farm or household expenses.
-        </div>
       </main>
 
       <VehicleSheet open={vehicleSheetOpen} onClose={() => setVehicleSheetOpen(false)} />

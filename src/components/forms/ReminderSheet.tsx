@@ -16,7 +16,7 @@ interface ReminderSheetProps {
 }
 
 export default function ReminderSheet({ open, onClose, reminder }: ReminderSheetProps) {
-  const { saveReminder, notify, preferences } = useApp();
+  const { saveReminder, notify, preferences, t } = useApp();
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(todayISO());
   const [time, setTime] = useState("");
@@ -86,19 +86,19 @@ export default function ReminderSheet({ open, onClose, reminder }: ReminderSheet
     <Sheet
       open={open}
       onClose={onClose}
-      title={reminder ? "Edit reminder" : "Add a reminder"}
+      title={reminder ? t("reminders.editReminder") : t("reminders.addReminder")}
       subtitle="A simple date you do not want to miss."
       footer={
         <button type="button" className="btn-primary w-full" onClick={save} disabled={busy}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          {busy ? "Saving…" : reminder ? "Save changes" : "Save reminder"}
+          {busy ? "…" : reminder ? t("form.saveChanges") : t("common.save")}
         </button>
       }
     >
       <div className="space-y-4">
         <div>
           <label className="label">
-            Reminder title <span className="text-negative">*</span>
+            {t("common.title")} <span className="text-negative">*</span>
           </label>
           <input
             className="input"
@@ -110,7 +110,7 @@ export default function ReminderSheet({ open, onClose, reminder }: ReminderSheet
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <SimpleDatePicker label="Date" value={date} onChange={setDate} required quick />
+          <SimpleDatePicker label={t("common.date")} value={date} onChange={setDate} required quick />
           <div>
             <label className="label">
               Time <span className="font-normal text-ink-muted">(optional)</span>
@@ -125,7 +125,7 @@ export default function ReminderSheet({ open, onClose, reminder }: ReminderSheet
         </div>
 
         <div>
-          <label className="label">Category</label>
+          <label className="label">{t("common.category")}</label>
           <select
             className="select"
             value={category}

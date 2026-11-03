@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useState } from "react";
 import Sheet from "./Sheet";
+import { useApp } from "@/context/AppContext";
 
 interface ConfirmOptions {
   title: string;
@@ -19,6 +20,7 @@ interface ConfirmContextValue {
 const ConfirmContext = createContext<ConfirmContextValue | null>(null);
 
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useApp();
   const [state, setState] = useState<{
     options: ConfirmOptions;
     resolve: (value: boolean) => void;
@@ -49,14 +51,14 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
               className="btn-secondary"
               onClick={() => finish(false)}
             >
-              {state?.options.cancelLabel ?? "Cancel"}
+              {state?.options.cancelLabel ?? t("common.cancel")}
             </button>
             <button
               type="button"
               className={state?.options.danger ? "btn-danger" : "btn-primary"}
               onClick={() => finish(true)}
             >
-              {state?.options.confirmLabel ?? "Confirm"}
+              {state?.options.confirmLabel ?? t("common.confirm")}
             </button>
           </div>
         }

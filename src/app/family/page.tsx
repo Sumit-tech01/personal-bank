@@ -16,11 +16,11 @@ import EmptyState from "@/components/ui/EmptyState";
 import StatCard from "@/components/ui/StatCard";
 import StatusPill from "@/components/ui/StatusPill";
 import FamilySheet from "@/components/forms/FamilySheet";
-import { ageOn, daysBetween, formatDate, nextBirthday, relativeDayLabel, todayISO } from "@/lib/dates";
+import { ageOn, daysBetween, nextBirthday, relativeDayLabel, todayISO } from "@/lib/dates";
 import type { FamilyMember } from "@/lib/types";
 
 export default function FamilyPage() {
-  const { familyMembers, deleteFamilyMember, notify } = useApp();
+  const { familyMembers, deleteFamilyMember, notify, t, formatDate } = useApp();
   const confirm = useConfirm();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<FamilyMember | null>(null);
@@ -50,9 +50,10 @@ export default function FamilyPage() {
 
   const remove = async (member: FamilyMember) => {
     const okay = await confirm({
-      title: `Remove ${member.name}?`,
-      message: "This family member will be removed from your list. Their records stay untouched.",
-      confirmLabel: "Remove member",
+      title: t("family.confirmDelete"),
+      message: t("dialog.deleteWarning"),
+      confirmLabel: t("family.deleteMember"),
+      cancelLabel: t("common.cancel"),
       danger: true,
     });
     if (!okay) return;
@@ -63,8 +64,8 @@ export default function FamilyPage() {
   return (
     <div className="min-h-[100dvh] bg-canvas">
       <PageHeader
-        title="Family"
-        subtitle="Names, birthdays and phone numbers"
+        title={t("family.title")}
+        subtitle={t("family.subtitle")}
         backHref="/more"
         right={
           <button
@@ -73,7 +74,7 @@ export default function FamilyPage() {
             className="flex h-10 items-center gap-1.5 rounded-full bg-brand-600 px-3.5 text-[12px] font-semibold text-white"
           >
             <Plus className="h-4 w-4" />
-            Add
+            {t("common.add")}
           </button>
         }
       />
@@ -85,27 +86,25 @@ export default function FamilyPage() {
               <Users className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h2 className="text-[14px] font-semibold text-ink">Your family</h2>
+              <h2 className="text-[14px] font-semibold text-ink">{t("family.title")}</h2>
               <p className="text-[11.5px] text-ink-muted">
-                A simple address book for the people in your home.
+                {t("family.subtitle")}
               </p>
             </div>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             <StatCard
-              label="Family members"
+              label={t("family.title")}
               value={String(familyMembers.length)}
-              hint={familyMembers.length === 1 ? "1 person" : `${familyMembers.length} people`}
+              hint={familyMembers.length === 1 ? t("family.memberCount", { count: 1 }) : t("family.memberCountPlural", { count: familyMembers.length })}
             />
             <StatCard
-              label="Birthdays this month"
+              label={t("family.birthday")}
               value={String(thisMonth)}
               hint={
                 nextBirthdayRow
-                  ? `Next: ${nextBirthdayRow.member.name.split(" ")[0]} ${relativeDayLabel(
-                      nextBirthdayRow.next
-                    ).toLowerCase()}`
-                  : "Add a date of birth"
+                  ? `${nextBirthdayRow.member.name.split(" ")[0]}`
+                  : t("common.noRecords")
               }
               tone={thisMonth > 0 ? "amber" : "default"}
             />
@@ -119,7 +118,7 @@ export default function FamilyPage() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold text-ink">
-                {nextBirthdayRow.member.name}&apos;s birthday
+                {nextBirthdayRow.member.name}
               </p>
               <p className="text-[11.5px] text-ink-secondary">
                 {formatDate(nextBirthdayRow.next, "long")} ·{" "}
@@ -127,7 +126,7 @@ export default function FamilyPage() {
               </p>
             </div>
             <StatusPill
-              label={`Turns ${ageOn(
+              label={`Age ${ageOn(
                 nextBirthdayRow.member.dateOfBirth as string,
                 nextBirthdayRow.next
               )}`}
@@ -139,9 +138,9 @@ export default function FamilyPage() {
         {familyMembers.length === 0 ? (
           <EmptyState
             icon={<Users className="h-5 w-5" />}
-            title="No family members yet"
-            message="Add the people in your family so birthdays and phone numbers are easy to find."
-            actionLabel="Add first family member"
+            title={t("family.noMembers")}
+            message={t("family.subtitle")}
+            actionLabel={t("family.addMember")}
             onAction={openNew}
           />
         ) : (
@@ -163,14 +162,13 @@ export default function FamilyPage() {
                         <p className="truncate text-[14px] font-semibold text-ink">
                           {member.name}
                         </p>
-                        <StatusPill label={member.relation || "Family"} tone="neutral" />
+                        <StatusPill label={member.relation || t("family.title")} tone="neutral" />
                       </div>
                       <div className="mt-1 space-y-0.5">
                         {member.dateOfBirth && (
                           <p className="flex items-center gap-1.5 text-[11.5px] text-ink-secondary">
                             <Cake className="h-3 w-3 text-ink-muted" />
-                            {formatDate(member.dateOfBirth, "long")} · {ageOn(member.dateOfBirth)}{" "}
-                            years
+                            {formatDate(member.dateOfBirth, "long")} · {ageOn(member.dateOfBirth)}
                             {next && days !== null && days <= 30 && (
                               <span className="font-semibold text-amber">
                                 · {relativeDayLabel(next)}
@@ -200,7 +198,7 @@ export default function FamilyPage() {
                           setSheetOpen(true);
                         }}
                         className="flex h-8 w-8 items-center justify-center rounded-full text-ink-secondary"
-                        aria-label={`Edit ${member.name}`}
+                        aria-label={t("common.edit")}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
@@ -208,7 +206,7 @@ export default function FamilyPage() {
                         type="button"
                         onClick={() => void remove(member)}
                         className="flex h-8 w-8 items-center justify-center rounded-full text-negative"
-                        aria-label={`Remove ${member.name}`}
+                        aria-label={t("common.delete")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -219,12 +217,6 @@ export default function FamilyPage() {
             })}
           </div>
         )}
-
-        <div className="rounded-2xl bg-canvas px-4 py-3 text-[11.5px] leading-5 text-ink-secondary">
-          Family details are saved in your account and sync only when cloud sync is turned on.
-          They are only used to remind you about birthdays and keep phone numbers handy, and
-          are never added to your income or expenses.
-        </div>
       </main>
 
       <FamilySheet

@@ -5,6 +5,7 @@ import { CalendarRange } from "lucide-react";
 import Sheet from "./Sheet";
 import SimpleDatePicker from "./SimpleDatePicker";
 import { PERIOD_LABELS, rangeForPreset, todayISO } from "@/lib/dates";
+import { useApp } from "@/context/AppContext";
 import type { DateRange, PeriodPreset } from "@/lib/types";
 
 interface PeriodFilterProps {
@@ -22,9 +23,37 @@ export default function PeriodFilter({
   presets = DEFAULT_PRESETS,
   compact = false,
 }: PeriodFilterProps) {
+  const { t } = useApp();
   const [customOpen, setCustomOpen] = useState(false);
   const [start, setStart] = useState(value.start);
   const [end, setEnd] = useState(value.end);
+
+  const getPresetLabel = (preset: PeriodPreset): string => {
+    switch (preset) {
+      case "TODAY":
+        return t("period.today");
+      case "THIS_WEEK":
+        return t("period.thisWeek");
+      case "THIS_MONTH":
+        return t("period.thisMonth");
+      case "LAST_MONTH":
+        return t("period.lastMonth");
+      case "FINANCIAL_YEAR":
+        return t("period.financialYear");
+      case "THIS_YEAR":
+        return t("period.thisYear");
+      case "LAST_YEAR":
+        return t("period.lastYear");
+      case "CURRENT_SEASON":
+        return t("period.currentSeason");
+      case "ALL_TIME":
+        return t("period.allTime");
+      case "CUSTOM":
+        return t("period.custom");
+      default:
+        return PERIOD_LABELS[preset] || preset;
+    }
+  };
 
   const openCustom = () => {
     setStart(value.preset === "CUSTOM" ? value.start : value.start);
@@ -54,20 +83,22 @@ export default function PeriodFilter({
               }`}
             >
               {preset === "CUSTOM" && <CalendarRange className="h-3.5 w-3.5" />}
-              {preset === "CUSTOM" && active ? value.label : PERIOD_LABELS[preset]}
+              {preset === "CUSTOM" && active ? value.label : getPresetLabel(preset)}
             </button>
           );
         })}
       </div>
       {!compact && (
-        <p className="mt-1.5 text-[11.5px] text-ink-muted">Showing {value.label}</p>
+        <p className="mt-1.5 text-[11.5px] text-ink-muted">
+          {t("period.showing", { label: value.label })}
+        </p>
       )}
 
       <Sheet
         open={customOpen}
         onClose={() => setCustomOpen(false)}
-        title="Choose a date range"
-        subtitle="Both days are included."
+        title={t("period.chooseDateRange")}
+        subtitle={t("period.bothDaysIncluded")}
         footer={
           <div className="grid grid-cols-2 gap-3">
             <button
@@ -75,7 +106,7 @@ export default function PeriodFilter({
               className="btn-secondary"
               onClick={() => setCustomOpen(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="button"
@@ -85,17 +116,16 @@ export default function PeriodFilter({
                 setCustomOpen(false);
               }}
             >
-              Apply range
+              {t("period.applyRange")}
             </button>
           </div>
         }
       >
         <div className="space-y-4">
-          <SimpleDatePicker label="Start date" value={start} onChange={setStart} />
-          <SimpleDatePicker label="End date" value={end} onChange={setEnd} />
+          <SimpleDatePicker label={t("period.startDate")} value={start} onChange={setStart} />
+          <SimpleDatePicker label={t("period.endDate")} value={end} onChange={setEnd} />
           <div className="rounded-2xl bg-canvas p-3 text-[12.5px] leading-5 text-ink-secondary">
-            Use a custom range to look back at any season, month or year. Reports always
-            use the dates you saved with each record.
+            {t("period.customRangeHint")}
           </div>
         </div>
       </Sheet>

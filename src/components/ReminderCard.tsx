@@ -3,7 +3,8 @@
 import React from "react";
 import { Check, RotateCcw } from "lucide-react";
 import StatusPill from "./ui/StatusPill";
-import { formatDate, formatTime, relativeDayLabel } from "@/lib/dates";
+import { formatTime, relativeDayLabel, todayISO } from "@/lib/dates";
+import { useApp } from "@/context/AppContext";
 import type { Reminder } from "@/lib/types";
 
 interface ReminderCardProps {
@@ -21,6 +22,7 @@ export default function ReminderCard({
   onClick,
   compact = false,
 }: ReminderCardProps) {
+  const { t, formatDate, language } = useApp();
   const overdue =
     !reminder.completed && reminder.date < new Date().toISOString().slice(0, 10);
   const tone = reminder.completed
@@ -30,6 +32,14 @@ export default function ReminderCard({
     : reminder.date === new Date().toISOString().slice(0, 10)
     ? "amber"
     : "brand";
+
+  const getDayLabel = () => {
+    if (reminder.completed) return t("reminders.done");
+    if (overdue) return t("reminders.overdue");
+    const today = todayISO();
+    if (reminder.date === today) return t("reminders.today");
+    return relativeDayLabel(reminder.date);
+  };
 
   return (
     <div className="flex items-start gap-3 rounded-2xl border border-line bg-white p-3.5">
@@ -44,7 +54,7 @@ export default function ReminderCard({
             ? "border-positive bg-positive text-white"
             : "border-line-strong bg-white text-ink-muted hover:border-brand-500 hover:text-brand-700"
         }`}
-        aria-label={reminder.completed ? "Reopen reminder" : "Mark reminder complete"}
+        aria-label={reminder.completed ? t("common.actions") : t("reminders.markComplete")}
       >
         {reminder.completed ? (
           <RotateCcw className="h-3.5 w-3.5" />
@@ -67,13 +77,7 @@ export default function ReminderCard({
             {reminder.title}
           </p>
           <StatusPill
-            label={
-              reminder.completed
-                ? "Done"
-                : overdue
-                ? "Overdue"
-                : relativeDayLabel(reminder.date)
-            }
+            label={getDayLabel()}
             tone={tone}
           />
         </div>

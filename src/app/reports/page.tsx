@@ -98,9 +98,20 @@ export default function ReportsPage() {
     cropSales,
     loans,
     inventory,
+    t,
   } = useApp();
   const [range, setRange] = useState<DateRange>(() => rangeForPreset("THIS_MONTH"));
   const [tab, setTab] = useState<ReportTab>("OVERVIEW");
+
+  const tabLabels: Record<ReportTab, string> = {
+    OVERVIEW: t("common.overview"),
+    EXPENSES: t("reports.spending"),
+    FARM: t("common.farm"),
+    VEHICLES: t("common.vehicles"),
+    HOUSEHOLD: t("common.home"),
+    LOANS: t("common.loans"),
+    HISTORY: t("reports.history"),
+  };
 
   const totals = useMemo(
     () => calculateTotals(transactions, cropSales, range),
@@ -259,8 +270,8 @@ export default function ReportsPage() {
   return (
     <div className="min-h-[100dvh] bg-canvas">
       <PageHeader
-        title="Reports"
-        subtitle="Real numbers from your records"
+        title={t("reports.title")}
+        subtitle={t("reports.subtitle")}
         right={
           <div className="flex items-center gap-1.5 no-print">
             <button
@@ -304,7 +315,7 @@ export default function ReportsPage() {
                       : "text-ink-secondary active:bg-canvas"
                   }`}
                 >
-                  {item.label}
+                  {tabLabels[item.value]}
                 </button>
               );
             })}

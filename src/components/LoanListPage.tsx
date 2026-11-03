@@ -3,10 +3,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertCircle,
   CalendarClock,
   CheckCircle2,
-  ChevronRight,
   Clock,
   CreditCard,
   FileText,
@@ -17,7 +15,6 @@ import {
   Search,
   Tractor,
   Trash2,
-  Wallet,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -31,7 +28,6 @@ import LoanSheet from "@/components/forms/LoanSheet";
 import RepaymentSheet from "@/components/forms/RepaymentSheet";
 import {
   loanAccruedInterest,
-  loanEffectiveStatus,
   loanInterestPaid,
   loanIsOverdue,
   loanOutstanding,
@@ -41,9 +37,9 @@ import {
   loanSummary,
   monthlyLoanCashflow,
 } from "@/lib/finance";
-import { formatDate, parseISODate, toISODate, todayISO } from "@/lib/dates";
+import { todayISO } from "@/lib/dates";
 import { formatINR, percentOf } from "@/lib/money";
-import type { Loan, LoanRepayment, LoanStatus, LoanType } from "@/lib/types";
+import type { Loan, LoanRepayment, LoanType } from "@/lib/types";
 
 interface LoanListPageProps {
   type: LoanType;
@@ -54,11 +50,11 @@ type FilterStatus = "ALL" | "ACTIVE" | "OVERDUE" | "COMPLETED";
 export default function LoanListPage({ type: propType }: LoanListPageProps) {
   const {
     loans,
-    transactions,
-    vehicles,
     deleteLoanRepayment,
     deleteLoan,
     notify,
+    t,
+    formatDate,
   } = useApp();
   const confirm = useConfirm();
 
@@ -94,9 +90,6 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
   );
 
   const today = todayISO();
-  const in30DaysDate = new Date();
-  in30DaysDate.setDate(in30DaysDate.getDate() + 30);
-  const in30Days = toISODate(in30DaysDate);
 
   // Filtered rows for current type
   const typeLoans = useMemo(
@@ -145,25 +138,17 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
         if (loan.dueDate < today) {
           list.push({
             loan,
-            label: "Due date passed",
+            label: t("reminders.overdue"),
             date: loan.dueDate,
             isOverdue: true,
-            amountPaise: loan.emiPaise ?? outstanding,
-          });
-        } else if (loan.dueDate <= in30Days) {
-          list.push({
-            loan,
-            label: "Upcoming due date",
-            date: loan.dueDate,
-            isOverdue: false,
-            amountPaise: loan.emiPaise ?? outstanding,
+            amountPaise: outstanding,
           });
         }
       }
     }
 
     return list.sort((a, b) => a.date.localeCompare(b.date));
-  }, [typeLoans, today, in30Days]);
+  }, [typeLoans, today, t]);
 
   const openNewLoan = () => {
     setEditingLoan(null);
@@ -177,21 +162,17 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
   };
 
   const openAddRepayment = (loan: Loan) => {
+    setSelectedLoan(loan);
     setEditingRepayment(null);
-    setRepaySheetOpen(true);
-  };
-
-  const openEditRepayment = (repayment: LoanRepayment) => {
-    setEditingRepayment(repayment);
     setRepaySheetOpen(true);
   };
 
   const handleRemoveLoan = async (loan: Loan) => {
     const okay = await confirm({
-      title: `Delete this ${borrowed ? "loan" : "lending"} record?`,
-      message:
-        "The record and its repayment history will be permanently removed. Any separate cash records remain intact.",
-      confirmLabel: "Delete Record",
+      title: t("dialog.confirmDelete"),
+      message: t("dialog.deleteWarning"),
+      confirmLabel: t("dialog.confirm"),
+      cancelLabel: t("dialog.cancel"),
       danger: true,
     });
     if (!okay) return;
@@ -206,9 +187,10 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
 
   const handleRemoveRepayment = async (loan: Loan, repaymentId: string) => {
     const okay = await confirm({
-      title: "Delete this payment record?",
-      message: "The outstanding loan balance will increase accordingly.",
-      confirmLabel: "Delete Payment",
+      title: t("dialog.confirmDelete"),
+      message: t("dialog.deleteWarning"),
+      confirmLabel: t("dialog.confirm"),
+      cancelLabel: t("dialog.cancel"),
       danger: true,
     });
     if (!okay) return;
@@ -225,12 +207,8 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
   return (
     <div className="min-h-[100dvh] bg-canvas pb-20">
       <PageHeader
-        title={borrowed ? "Loans We Owe" : "Money We Lent"}
-        subtitle={
-          borrowed
-            ? "Track bank, society & private loans separate from daily spending"
-            : "Track money lent to relatives, neighbours & farmers"
-        }
+        title={borrowed ? t("loans.borrowedTitle") : t("loans.lentTitle")}
+        subtitle={borrowed ? t("loans.borrowedSubtitle") : t("loans.lentSubtitle")}
         backHref="/more"
         right={
           <button
@@ -239,7 +217,7 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
             className="flex h-10 items-center gap-1.5 rounded-full bg-brand-600 px-3.5 text-[12px] font-semibold text-white shadow-xs transition active:scale-95"
           >
             <Plus className="h-4 w-4" />
-            Add
+            {t("common.add")}
           </button>
         }
       />
@@ -260,7 +238,7 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
             }`}
           >
             <Landmark className="h-4 w-4 text-sky" />
-            <span>Borrowed Loans</span>
+            <span>{t("loans.borrowedTitle")}</span>
             <span className="rounded-full bg-canvas px-1.5 py-0.5 text-[10px] text-ink-muted">
               {dashStats.totalBorrowedCount}
             </span>
@@ -278,7 +256,7 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
             }`}
           >
             <HandCoins className="h-4 w-4 text-brand-700" />
-            <span>Money Lent</span>
+            <span>{t("loans.lentTitle")}</span>
             <span className="rounded-full bg-canvas px-1.5 py-0.5 text-[10px] text-ink-muted">
               {dashStats.totalLentCount}
             </span>
@@ -290,15 +268,14 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
-                {borrowed ? "Total Outstanding Debt" : "Total Outstanding to Recover"}
+                {t("loans.outstanding")}
               </p>
               <p className="mt-1 text-[26px] font-bold tracking-tight text-ink">
                 {formatINR(currentSummary.outstandingPaise)}
               </p>
               <p className="mt-0.5 text-[11.5px] text-ink-muted">
-                Original amount: {formatINR(currentSummary.principalPaise)} ·{" "}
-                {currentSummary.activeCount} active
-                {currentSummary.closedCount > 0 ? ` · ${currentSummary.closedCount} settled` : ""}
+                {t("common.total")}: {formatINR(currentSummary.principalPaise)} ·{" "}
+                {currentSummary.activeCount} {t("loans.active")}
               </p>
             </div>
             <span
@@ -312,34 +289,31 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
 
           <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             <StatCard
-              label={borrowed ? "Principal Repaid" : "Principal Recovered"}
+              label={borrowed ? t("loans.totalRepaid") : t("loans.totalCollected")}
               value={formatINR(currentSummary.principalRepaidPaise)}
               tone="positive"
             />
             <StatCard
-              label={borrowed ? "Interest Paid" : "Interest Received"}
+              label={t("reports.cashFlow")}
               value={formatINR(currentSummary.interestPaidPaise)}
               tone={borrowed ? "negative" : "positive"}
-              sub={borrowed ? "Financing cost" : "Interest earnings"}
             />
             <StatCard
-              label={borrowed ? "Total Repaid" : "Total Collected"}
+              label={borrowed ? t("loans.totalRepaid") : t("loans.totalCollected")}
               value={formatINR(currentSummary.repaidPaise)}
-              sub="Principal + interest"
             />
             <StatCard
-              label="Overdue Balance"
+              label={t("loans.overdue")}
               value={formatINR(currentSummary.overduePaise)}
               tone={currentSummary.overduePaise > 0 ? "negative" : "neutral"}
-              sub={`${currentSummary.overdueCount} overdue`}
             />
           </div>
 
           <div className="mt-3 flex items-center justify-between border-t border-line/70 pt-2.5">
             <span className="text-[11.5px] text-ink-secondary">
               {borrowed
-                ? "Loans are debt liabilities, not income."
-                : "Money lent is a receivable asset, not an expense."}
+                ? t("loans.borrowedSubtitle")
+                : t("loans.lentSubtitle")}
             </span>
             <button
               type="button"
@@ -347,7 +321,7 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
               className="text-[11.5px] font-semibold text-brand-700 hover:underline flex items-center gap-1"
             >
               <FileText className="h-3.5 w-3.5" />
-              View Cashflow Report
+              {t("reports.title")}
             </button>
           </div>
         </section>
@@ -358,7 +332,7 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
             <div className="flex items-center gap-2">
               <CalendarClock className="h-4 w-4 text-amber" />
               <h3 className="text-[12.5px] font-semibold text-ink">
-                Payment Reminders ({alerts.length})
+                {t("reminders.upcoming")} ({alerts.length})
               </h3>
             </div>
             <div className="mt-2 space-y-1.5">
@@ -378,7 +352,7 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
                       item.isOverdue ? "text-negative" : "text-amber-dark"
                     }`}
                   >
-                    {item.isOverdue ? "Overdue since " : "Due "} {formatDate(item.date)}
+                    {item.isOverdue ? `${t("reminders.overdue")} ` : `${t("reminders.upcoming")} `} {formatDate(item.date)}
                   </span>
                 </div>
               ))}
@@ -392,7 +366,7 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
             <Search className="h-4 w-4 text-ink-muted" />
             <input
               className="w-full bg-transparent text-[13px] text-ink placeholder:text-ink-muted focus:outline-none"
-              placeholder={`Search ${borrowed ? "lender, bank, vehicle or purpose" : "borrower or purpose"}...`}
+              placeholder={t("common.search")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -420,12 +394,12 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
                 }`}
               >
                 {st === "ALL"
-                  ? "All"
+                  ? t("common.all")
                   : st === "ACTIVE"
-                  ? "Active"
+                  ? t("loans.active")
                   : st === "OVERDUE"
-                  ? "Overdue"
-                  : "Settled"}
+                  ? t("loans.overdue")
+                  : t("loans.closed")}
               </button>
             ))}
           </div>
@@ -437,17 +411,13 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
             icon={borrowed ? <Landmark className="h-5 w-5" /> : <HandCoins className="h-5 w-5" />}
             title={
               searchQuery
-                ? "No matching records found"
+                ? t("common.noRecords")
                 : borrowed
-                ? "No borrowed loans recorded"
-                : "No lending records found"
+                ? t("loans.noLoans")
+                : t("lending.noLending")
             }
-            message={
-              borrowed
-                ? "Add bank loans, cooperative loans, tractor financing, or personal borrowings to track installments and balances."
-                : "Add money given to relatives, neighbours or friends. Tracking keeps capital safe without confounding your expenses."
-            }
-            actionLabel={borrowed ? "Add Borrowed Loan" : "Add Lending Record"}
+            message={borrowed ? t("loans.borrowedSubtitle") : t("lending.subtitle")}
+            actionLabel={borrowed ? t("loans.addBorrowed") : t("loans.addLent")}
             onAction={openNewLoan}
           />
         ) : (
@@ -469,12 +439,12 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
                 : "brand";
 
               const statusLabel = isCompleted
-                ? "Settled"
+                ? t("loans.closed")
                 : isOverdue
-                ? "Overdue"
+                ? t("loans.overdue")
                 : loan.status === "WRITTEN_OFF"
                 ? "Written Off"
-                : "Active";
+                : t("loans.active");
 
               return (
                 <button
@@ -500,7 +470,7 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
                       <p className="mt-1 text-[11.5px] text-ink-muted">
                         {[
                           formatDate(loan.date),
-                          loan.interestRate ? `${loan.interestRate}% int.` : null,
+                          loan.interestRate ? `${loan.interestRate}%` : null,
                           loan.purpose,
                         ]
                           .filter(Boolean)
@@ -510,7 +480,7 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
                       {loan.vehicleName && (
                         <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-sky">
                           <Tractor className="h-3.5 w-3.5" />
-                          Linked Vehicle: {loan.vehicleName}
+                          {loan.vehicleName}
                         </p>
                       )}
                     </div>
@@ -524,39 +494,21 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
                           outstanding > 0 ? "text-negative" : "text-positive"
                         }`}
                       >
-                        {outstanding > 0 ? `${formatINR(outstanding)} left` : "Settled"}
+                        {outstanding > 0 ? `${formatINR(outstanding)}` : t("loans.closed")}
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-3">
                     <div className="mb-1 flex items-center justify-between text-[10.5px] text-ink-muted">
-                      <span>{formatINR(repaid)} paid</span>
-                      <span>{progress}% principal cleared</span>
+                      <span>{formatINR(repaid)} {t("labour.paid")}</span>
+                      <span>{progress}%</span>
                     </div>
                     <ProgressBar
                       value={progress}
                       tone={isCompleted ? "positive" : isOverdue ? "negative" : "brand"}
                     />
                   </div>
-
-                  {loan.dueDate && (
-                    <div className="mt-2.5 flex items-center justify-between text-[11px]">
-                      <span
-                        className={`flex items-center gap-1 ${
-                          isOverdue ? "font-semibold text-negative" : "text-ink-muted"
-                        }`}
-                      >
-                        <CalendarClock className="h-3 w-3" />
-                        {isOverdue ? "Was due on" : "Due"}: {formatDate(loan.dueDate)}
-                      </span>
-                      {loan.emiPaise ? (
-                        <span className="font-medium text-ink">
-                          EMI: {formatINR(loan.emiPaise)}
-                        </span>
-                      ) : null}
-                    </div>
-                  )}
                 </button>
               );
             })}
@@ -564,263 +516,74 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
         )}
       </main>
 
-      {/* Loan Sheet (New / Edit) */}
+      {/* Loan Sheet */}
       <LoanSheet
         open={loanSheetOpen}
         onClose={() => {
           setLoanSheetOpen(false);
           setEditingLoan(null);
         }}
-        loan={editingLoan}
         defaultType={activeType}
+        loan={editingLoan}
       />
 
       {/* Repayment Sheet */}
-      <RepaymentSheet
-        open={repaySheetOpen}
-        onClose={() => {
-          setRepaySheetOpen(false);
-          setEditingRepayment(null);
-        }}
-        loan={selectedLoan}
-        repayment={editingRepayment}
-      />
+      {selectedLoan && (
+        <RepaymentSheet
+          open={repaySheetOpen}
+          onClose={() => {
+            setRepaySheetOpen(false);
+            setEditingRepayment(null);
+          }}
+          loan={selectedLoan}
+          repayment={editingRepayment}
+        />
+      )}
 
-      {/* Loan Detail Sheet */}
+      {/* Selected Loan Detail Sheet */}
       <Sheet
-        open={!!selectedLoan}
+        open={!!selectedLoan && !repaySheetOpen}
         onClose={() => setSelectedLoan(null)}
-        title={selectedLoan?.partyName ?? "Loan Details"}
-        subtitle={
-          selectedLoan
-            ? `${selectedLoan.type === "BORROWED" ? "Money Borrowed" : "Money Lent"} · ${
-                selectedLoan.category || "General"
-              }`
-            : ""
-        }
-        footer={
-          selectedLoan ? (
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                className="btn-secondary py-2.5 text-[12.5px]"
-                onClick={() => openEditLoan(selectedLoan)}
-              >
-                <Pencil className="h-4 w-4" />
-                Edit
-              </button>
-              <button
-                type="button"
-                className="btn-primary py-2.5 text-[12.5px]"
-                onClick={() => openAddRepayment(selectedLoan)}
-                disabled={loanOutstanding(selectedLoan) <= 0}
-              >
-                <Plus className="h-4 w-4" />
-                {selectedLoan.type === "BORROWED" ? "Record Repayment" : "Record Collection"}
-              </button>
-            </div>
-          ) : undefined
-        }
+        title={selectedLoan?.partyName ?? t("loans.title")}
+        subtitle={borrowed ? t("loans.borrowedTitle") : t("loans.lentTitle")}
         size="lg"
       >
         {selectedLoan && (
           <div className="space-y-4">
-            {/* Quick Balances Grid */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-xl bg-canvas p-2.5">
-                <p className="text-[10px] text-ink-muted">Original</p>
-                <p className="mt-0.5 truncate text-[13px] font-semibold text-ink">
-                  {formatINR(selectedLoan.principalPaise)}
-                </p>
-              </div>
-              <div className="rounded-xl bg-canvas p-2.5">
-                <p className="text-[10px] text-ink-muted">Principal Repaid</p>
-                <p className="mt-0.5 truncate text-[13px] font-semibold text-positive">
-                  {formatINR(loanPrincipalRepaid(selectedLoan))}
-                </p>
-              </div>
-              <div className="rounded-xl bg-canvas p-2.5">
-                <p className="text-[10px] text-ink-muted">Outstanding</p>
-                <p
-                  className={`mt-0.5 truncate text-[13px] font-semibold ${
-                    loanOutstanding(selectedLoan) > 0 ? "text-negative" : "text-positive"
-                  }`}
-                >
-                  {formatINR(loanOutstanding(selectedLoan))}
-                </p>
-              </div>
+            <div className="rounded-2xl border border-line bg-canvas p-4 space-y-2 text-[12.5px]">
+              <DetailRow label={t("loans.outstanding")} value={<strong className="text-negative font-mono text-[15px]">{formatINR(loanOutstanding(selectedLoan))}</strong>} />
+              <DetailRow label={t("common.total")} value={formatINR(selectedLoan.principalPaise)} />
+              <DetailRow label={t("loans.totalRepaid")} value={<span className="text-positive font-semibold">{formatINR(loanRepaid(selectedLoan))}</span>} />
+              <DetailRow label={t("common.date")} value={formatDate(selectedLoan.date, "long")} />
+              {selectedLoan.dueDate && <DetailRow label={t("reminders.upcoming")} value={formatDate(selectedLoan.dueDate, "long")} />}
             </div>
 
-            {/* Interest Stats (if applicable) */}
-            {selectedLoan.interestRate > 0 && (
-              <div className="grid grid-cols-2 gap-2 text-[11.5px]">
-                <div className="rounded-xl bg-canvas p-2.5">
-                  <span className="text-ink-muted">Interest Paid to Date:</span>
-                  <p className="mt-0.5 font-semibold text-ink">
-                    {formatINR(loanInterestPaid(selectedLoan))}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-canvas p-2.5">
-                  <span className="text-ink-muted">Accrued / Est. Interest:</span>
-                  <p className="mt-0.5 font-semibold text-amber-dark">
-                    {formatINR(loanAccruedInterest(selectedLoan))}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Details Table */}
-            <div className="space-y-2 rounded-2xl bg-canvas p-3.5 text-[12px]">
-              <DetailRow label="Party / Lender" value={selectedLoan.partyName} />
-              {selectedLoan.contactNumber && (
-                <DetailRow label="Contact Phone" value={selectedLoan.contactNumber} />
-              )}
-              {selectedLoan.category && (
-                <DetailRow label="Category" value={selectedLoan.category} />
-              )}
-              <DetailRow label="Started Date" value={formatDate(selectedLoan.date)} />
-              {selectedLoan.dueDate && (
-                <DetailRow label="Maturity / Due Date" value={formatDate(selectedLoan.dueDate)} />
-              )}
-              {selectedLoan.paymentFrequency && (
-                <DetailRow
-                  label="Payment Frequency"
-                  value={selectedLoan.paymentFrequency.replace("_", " ")}
-                />
-              )}
-              {selectedLoan.durationMonths && (
-                <DetailRow label="Loan Duration" value={`${selectedLoan.durationMonths} months`} />
-              )}
-              {selectedLoan.emiPaise && (
-                <DetailRow label="Expected EMI" value={formatINR(selectedLoan.emiPaise)} />
-              )}
-              <DetailRow
-                label="Interest Calculation"
-                value={
-                  selectedLoan.interestRate
-                    ? `${selectedLoan.interestRate}% per year (${selectedLoan.interestType || "Simple"})`
-                    : "Zero Interest"
-                }
-              />
-              {selectedLoan.purpose && (
-                <DetailRow label="Loan Purpose" value={selectedLoan.purpose} />
-              )}
-              {selectedLoan.vehicleName && (
-                <DetailRow
-                  label="Linked Vehicle"
-                  value={
-                    selectedLoan.vehicleId ? (
-                      <Link
-                        href={`/vehicles/${selectedLoan.vehicleId}`}
-                        className="font-semibold text-sky hover:underline"
-                      >
-                        {selectedLoan.vehicleName} →
-                      </Link>
-                    ) : (
-                      selectedLoan.vehicleName
-                    )
-                  }
-                />
-              )}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className="btn-primary w-full"
+                onClick={() => openAddRepayment(selectedLoan)}
+              >
+                <Plus className="h-4 w-4" />
+                {borrowed ? t("loans.recordRepayment") : t("loans.recordCollection")}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary w-full"
+                onClick={() => openEditLoan(selectedLoan)}
+              >
+                <Pencil className="h-4 w-4" />
+                {t("common.edit")}
+              </button>
             </div>
 
-            {/* Supporting Document Preview */}
-            {(selectedLoan.receiptDataUrl || selectedLoan.documentUrl) && (
-              <div className="rounded-2xl border border-line bg-white p-3.5">
-                <p className="text-[12px] font-semibold text-ink mb-2">Supporting Agreement Document</p>
-                <img
-                  src={selectedLoan.receiptDataUrl || selectedLoan.documentUrl}
-                  alt="Loan agreement"
-                  className="max-h-48 rounded-xl object-contain border border-line"
-                />
-              </div>
-            )}
-
-            {/* Repayment History */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[13px] font-semibold text-ink">
-                  {selectedLoan.type === "BORROWED" ? "Repayment History" : "Collection History"}
-                </h4>
-                <span className="text-[11px] text-ink-muted">
-                  {selectedLoan.repayments.length} record
-                  {selectedLoan.repayments.length === 1 ? "" : "s"}
-                </span>
-              </div>
-
-              {selectedLoan.repayments.length === 0 ? (
-                <p className="rounded-xl bg-canvas p-3 text-[11.5px] text-ink-muted">
-                  No payments recorded yet.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {[...selectedLoan.repayments]
-                    .sort((a, b) => b.date.localeCompare(a.date))
-                    .map((rep) => (
-                      <div
-                        key={rep.id}
-                        className="rounded-xl border border-line bg-white p-3 space-y-1.5"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-[13px] font-semibold text-ink">
-                              {formatINR(rep.amountPaise)}
-                            </p>
-                            <p className="text-[11px] text-ink-muted">
-                              {formatDate(rep.date)} · {rep.paymentMethod}
-                              {rep.reference ? ` · Ref: ${rep.reference}` : ""}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => openEditRepayment(rep)}
-                              className="flex h-7 w-7 items-center justify-center rounded-full text-ink-muted hover:text-ink hover:bg-canvas"
-                              aria-label="Edit payment"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleRemoveRepayment(selectedLoan, rep.id)}
-                              className="flex h-7 w-7 items-center justify-center rounded-full text-ink-muted hover:text-negative hover:bg-negative-light"
-                              aria-label="Delete payment"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-
-                        {(rep.principalPaise !== undefined || rep.interestPaise !== undefined) && (
-                          <div className="flex items-center gap-3 border-t border-line/60 pt-1.5 text-[11px] text-ink-secondary">
-                            <span>
-                              Principal: <strong>{formatINR(rep.principalPaise ?? rep.amountPaise)}</strong>
-                            </span>
-                            {rep.interestPaise ? (
-                              <span>
-                                Interest: <strong>{formatINR(rep.interestPaise)}</strong>
-                              </span>
-                            ) : null}
-                          </div>
-                        )}
-
-                        {rep.notes && (
-                          <p className="text-[11px] text-ink-muted">{rep.notes}</p>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-
-            {/* Delete Record */}
             <button
               type="button"
               className="btn-danger w-full mt-4"
               onClick={() => void handleRemoveLoan(selectedLoan)}
             >
               <Trash2 className="h-4 w-4" />
-              Delete Loan Record
+              {t("common.delete")}
             </button>
           </div>
         )}
@@ -830,62 +593,24 @@ export default function LoanListPage({ type: propType }: LoanListPageProps) {
       <Sheet
         open={reportsOpen}
         onClose={() => setReportsOpen(false)}
-        title="Loans & Lending Cashflow Report"
-        subtitle="Monthly principal repayments, interest paid, and collections"
+        title={t("reports.title")}
+        subtitle={t("reports.cashFlow")}
         size="lg"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2 text-[12px]">
             <div className="rounded-xl bg-canvas p-3">
-              <span className="text-ink-muted">Total Borrowed Outstanding:</span>
+              <span className="text-ink-muted">{t("loans.borrowedTitle")}:</span>
               <p className="mt-1 text-[16px] font-bold text-negative">
                 {formatINR(dashStats.totalBorrowedPrincipalOutstandingPaise)}
               </p>
             </div>
             <div className="rounded-xl bg-canvas p-3">
-              <span className="text-ink-muted">Total Lent Outstanding:</span>
+              <span className="text-ink-muted">{t("loans.lentTitle")}:</span>
               <p className="mt-1 text-[16px] font-bold text-positive">
                 {formatINR(dashStats.totalLentPrincipalOutstandingPaise)}
               </p>
             </div>
-          </div>
-
-          <div>
-            <h4 className="text-[13px] font-semibold text-ink mb-2">Monthly Cashflow Breakdown</h4>
-            {monthlyCashflow.length === 0 ? (
-              <p className="rounded-xl bg-canvas p-3 text-[11.5px] text-ink-muted">
-                No repayment cashflow history recorded yet.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {monthlyCashflow.map((m) => (
-                  <div
-                    key={m.month}
-                    className="rounded-xl border border-line bg-white p-3 text-[12px] space-y-1.5"
-                  >
-                    <p className="font-semibold text-ink">{m.month}</p>
-                    <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      <div>
-                        <span className="text-ink-muted">Principal Repaid:</span>{" "}
-                        <strong className="text-ink">{formatINR(m.principalRepaymentsPaise)}</strong>
-                      </div>
-                      <div>
-                        <span className="text-ink-muted">Interest Paid:</span>{" "}
-                        <strong className="text-negative">{formatINR(m.interestPaidPaise)}</strong>
-                      </div>
-                      <div>
-                        <span className="text-ink-muted">Principal Recovered:</span>{" "}
-                        <strong className="text-ink">{formatINR(m.principalCollectionsPaise)}</strong>
-                      </div>
-                      <div>
-                        <span className="text-ink-muted">Interest Received:</span>{" "}
-                        <strong className="text-positive">{formatINR(m.interestReceivedPaise)}</strong>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </Sheet>

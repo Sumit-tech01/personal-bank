@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronRight, MapPin, Sprout } from "lucide-react";
 import StatusPill from "./ui/StatusPill";
 import { formatINR } from "@/lib/money";
+import { useApp } from "@/context/AppContext";
 import type { Crop } from "@/lib/types";
 import type { CropFinancials } from "@/lib/finance";
 
@@ -14,15 +15,16 @@ interface CropCardProps {
 }
 
 export default function CropCard({ crop, financials }: CropCardProps) {
+  const { t } = useApp();
   const profit = financials.profitPaise;
   const statusLabel =
     crop.status === "ACTIVE"
-      ? "Active"
+      ? t("farm.statusActive")
       : crop.status === "HARVESTING"
-      ? "Harvesting"
+      ? t("farm.statusHarvesting")
       : crop.status === "PLANNED"
-      ? "Planned"
-      : "Completed";
+      ? t("farm.statusPlanned")
+      : t("farm.statusCompleted");
   const statusTone =
     crop.status === "ACTIVE"
       ? "positive"
@@ -31,6 +33,10 @@ export default function CropCard({ crop, financials }: CropCardProps) {
       : crop.status === "PLANNED"
       ? "neutral"
       : "neutral";
+
+  const areaText = `${crop.areaAcres} ${
+    crop.areaAcres === 1 ? t("farm.acresUnit") : t("farm.acresUnitPlural")
+  }`;
 
   return (
     <Link
@@ -51,13 +57,13 @@ export default function CropCard({ crop, financials }: CropCardProps) {
             />
           </div>
           <p className="mt-0.5 truncate text-[11.5px] text-ink-muted">
-            {[crop.variety, `${crop.season} ${crop.year}`, `${crop.areaAcres} acre${crop.areaAcres === 1 ? "" : "s"}`]
+            {[crop.variety, `${crop.season} ${crop.year}`, areaText]
               .filter(Boolean)
               .join(" · ")}
           </p>
           <p className="mt-1 flex items-center gap-1 text-[11px] text-ink-muted">
             <MapPin className="h-3 w-3" />
-            {crop.landName || "Unassigned plot"}
+            {crop.landName || t("farm.unassignedPlot")}
           </p>
         </div>
         <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-ink-muted" />
@@ -65,19 +71,21 @@ export default function CropCard({ crop, financials }: CropCardProps) {
 
       <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-canvas/80 px-3 py-2.5">
         <div>
-          <p className="text-[10px] text-ink-muted">Sales</p>
+          <p className="text-[10px] text-ink-muted">{t("farm.sales")}</p>
           <p className="mt-0.5 truncate text-[12.5px] font-semibold text-positive">
             {formatINR(financials.salesRevenuePaise)}
           </p>
         </div>
         <div>
-          <p className="text-[10px] text-ink-muted">Investment</p>
+          <p className="text-[10px] text-ink-muted">{t("farm.investment")}</p>
           <p className="mt-0.5 truncate text-[12.5px] font-semibold text-ink">
             {formatINR(financials.totalInvestmentPaise)}
           </p>
         </div>
         <div>
-          <p className="text-[10px] text-ink-muted">{profit >= 0 ? "Profit" : "Loss"}</p>
+          <p className="text-[10px] text-ink-muted">
+            {profit >= 0 ? t("farm.profit") : t("farm.loss")}
+          </p>
           <p
             className={`mt-0.5 truncate text-[12.5px] font-semibold ${
               profit >= 0 ? "text-positive" : "text-negative"

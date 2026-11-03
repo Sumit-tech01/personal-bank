@@ -152,6 +152,7 @@ export default function AddRecordSheet() {
     saveLoan,
     saveReminder,
     notify,
+    t,
   } = useApp();
   const confirm = useConfirm();
 
@@ -700,15 +701,27 @@ export default function AddRecordSheet() {
     }
   };
 
+  const optionLabels: Record<AddRecordType, string> = {
+    INCOME: t("transactions.moneyIn"),
+    HOME_EXPENSE: t("form.homeExpense"),
+    FARM_EXPENSE: t("form.farmExpense"),
+    LABOUR: t("form.labourPayment"),
+    VEHICLE_EXPENSE: t("form.vehicleExpense"),
+    LOAN: t("form.moneyBorrowed"),
+    LENDING: t("form.moneyLent"),
+    REMINDER: t("form.reminder"),
+    OPENING_BALANCE: t("form.openingBalance"),
+  };
+
   const expenseMode = isExpenseType(type);
 
   const typeTitle = expenseMode
     ? isEditing
-      ? "Edit expense"
-      : "Add expense"
+      ? t("expenses.editExpense")
+      : t("expenses.addExpense")
     : type
-    ? TYPE_TITLES[type]
-    : "Add a record";
+    ? optionLabels[type]
+    : t("form.addRecord");
 
   const footer = type ? (
     <button
@@ -718,7 +731,7 @@ export default function AddRecordSheet() {
       disabled={busy || receiptBusy}
     >
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-      {busy ? "Saving…" : isEditing ? "Save changes" : `Save ${typeTitle.toLowerCase()}`}
+      {busy ? "…" : isEditing ? t("form.saveChanges") : t("common.save")}
     </button>
   ) : undefined;
 
@@ -732,9 +745,9 @@ export default function AddRecordSheet() {
           ? "Choose expense category, enter details and tap Save."
           : type
           ? isEditing
-            ? "Changes are saved on this device immediately."
+            ? t("form.changesSavedImmediately")
             : "Only the fields you need. You can change this later."
-          : "What would you like to add today?"
+          : t("form.whatWouldYouLikeToAdd")
       }
       footer={footer}
       size="lg"
@@ -753,7 +766,7 @@ export default function AddRecordSheet() {
               >
                 {TYPE_ICONS[option.type]}
               </span>
-              <span className="mt-2 text-[13px] font-semibold text-ink">{option.label}</span>
+              <span className="mt-2 text-[13px] font-semibold text-ink">{optionLabels[option.type] || option.label}</span>
               <span className="mt-0.5 text-[10.5px] leading-4 text-ink-muted">
                 {option.description}
               </span>
@@ -774,7 +787,7 @@ export default function AddRecordSheet() {
               className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-secondary"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Choose a different type
+              {t("form.chooseDifferentType")}
             </button>
           )}
 
@@ -783,6 +796,15 @@ export default function AddRecordSheet() {
             <div className="grid grid-cols-4 gap-1.5 rounded-2xl border border-line bg-canvas p-1">
               {EXPENSE_TYPES.map((item) => {
                 const active = type === item.type;
+                const localizedExpenseLabel =
+                  item.type === "HOME_EXPENSE"
+                    ? t("common.home")
+                    : item.type === "FARM_EXPENSE"
+                    ? t("common.farm")
+                    : item.type === "LABOUR"
+                    ? t("common.labour")
+                    : t("common.vehicles");
+
                 return (
                   <button
                     key={item.type}
@@ -795,7 +817,7 @@ export default function AddRecordSheet() {
                     }`}
                   >
                     {item.icon}
-                    <span>{item.label}</span>
+                    <span>{localizedExpenseLabel}</span>
                   </button>
                 );
               })}

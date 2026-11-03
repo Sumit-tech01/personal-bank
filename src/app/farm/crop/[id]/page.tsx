@@ -65,6 +65,7 @@ export default function CropDetailPage() {
     openAdd,
     markLabourPaid,
     notify,
+    t,
   } = useApp();
   const confirm = useConfirm();
 
@@ -206,7 +207,15 @@ export default function CropDetailPage() {
               Current Stage
             </span>
             <StatusPill
-              label={STATUS_LABELS[crop.status]}
+              label={
+                crop.status === "PLANNED"
+                  ? t("farm.statusPlanned")
+                  : crop.status === "ACTIVE"
+                  ? t("farm.statusActive")
+                  : crop.status === "HARVESTING"
+                  ? t("farm.statusHarvesting")
+                  : t("farm.statusCompleted")
+              }
               tone={
                 crop.status === "COMPLETED"
                   ? "positive"
@@ -232,7 +241,13 @@ export default function CropDetailPage() {
                     : "text-ink-muted hover:text-ink"
                 }`}
               >
-                {STATUS_LABELS[st]}
+                {st === "PLANNED"
+                  ? t("farm.statusPlanned")
+                  : st === "ACTIVE"
+                  ? t("farm.statusActive")
+                  : st === "HARVESTING"
+                  ? t("farm.statusHarvesting")
+                  : t("farm.statusCompleted")}
               </button>
             ))}
           </div>
@@ -249,7 +264,7 @@ export default function CropDetailPage() {
                 : "text-ink-muted hover:text-ink"
             }`}
           >
-            Overview
+            {t("common.overview")}
           </button>
           <button
             type="button"
@@ -260,7 +275,7 @@ export default function CropDetailPage() {
                 : "text-ink-muted hover:text-ink"
             }`}
           >
-            Expenses
+            {t("common.expenses")}
           </button>
           <button
             type="button"
@@ -271,7 +286,7 @@ export default function CropDetailPage() {
                 : "text-ink-muted hover:text-ink"
             }`}
           >
-            Labour
+            {t("common.labour")}
           </button>
           <button
             type="button"
@@ -282,7 +297,7 @@ export default function CropDetailPage() {
                 : "text-ink-muted hover:text-ink"
             }`}
           >
-            Sales
+            {t("farm.sales")}
           </button>
         </div>
 

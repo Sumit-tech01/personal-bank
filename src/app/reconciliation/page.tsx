@@ -32,6 +32,7 @@ export default function ReconciliationPage() {
     vehicles,
     deleteTransaction,
     notify,
+    t,
   } = useApp();
   const router = useRouter();
   const confirm = useConfirm();
@@ -64,9 +65,9 @@ export default function ReconciliationPage() {
     if (!issue.affectedRecordId || issue.affectedEntity !== "transaction") return;
 
     const ok = await confirm({
-      title: "Remove Duplicate Transaction?",
+      title: t("reconciliation.removeDuplicateTitle"),
       message: `Delete transaction ID ${issue.affectedRecordId}? This will remove the duplicate entry from cashflow.`,
-      confirmLabel: "Delete Duplicate",
+      confirmLabel: t("reconciliation.deleteDuplicate"),
       danger: true,
     });
     if (!ok) return;
@@ -74,9 +75,9 @@ export default function ReconciliationPage() {
     setReconcilingId(issue.id);
     try {
       await deleteTransaction(issue.affectedRecordId);
-      notify("Duplicate transaction removed.");
+      notify(t("common.saved"));
     } catch {
-      notify("Failed to remove duplicate.", "error");
+      notify(t("common.error"), "error");
     } finally {
       setReconcilingId(null);
     }
@@ -97,8 +98,8 @@ export default function ReconciliationPage() {
   return (
     <div className="min-h-[100dvh] bg-canvas pb-20">
       <PageHeader
-        title="Reconciliation Center"
-        subtitle="Automated financial integrity & ledger audit"
+        title={t("reconciliation.title")}
+        subtitle={t("reconciliation.subtitle")}
         backHref="/more"
       />
 
@@ -132,13 +133,13 @@ export default function ReconciliationPage() {
             <div className="min-w-0 flex-1">
               <h2 className="text-[15px] font-bold text-ink">
                 {issues.length === 0
-                  ? "All Ledgers 100% Reconciled"
-                  : `${issues.length} Audit Items Found`}
+                  ? t("reconciliation.allReconciled")
+                  : t("reconciliation.itemsFound", { count: issues.length })}
               </h2>
               <p className="mt-0.5 text-[12px] text-ink-secondary leading-relaxed">
                 {issues.length === 0
-                  ? "No duplicate transaction links, loan repayment mismatches, or inventory formula discrepancies detected. All records reconcile cleanly."
-                  : `Detected ${errorCount} errors and ${warningCount} warnings across transactions, loans, and inventory stock.`}
+                  ? t("reconciliation.noIssuesDesc")
+                  : t("reconciliation.issuesDesc", { errors: errorCount, warnings: warningCount })}
               </p>
             </div>
           </div>
@@ -166,7 +167,7 @@ export default function ReconciliationPage() {
                       : "border border-line bg-white text-ink-secondary hover:bg-canvas"
                   }`}
                 >
-                  {filter === "ALL" ? `All Issues (${count})` : `${filter} (${count})`}
+                  {filter === "ALL" ? t("reconciliation.allIssues", { count }) : `${filter} (${count})`}
                 </button>
               );
             })}
@@ -177,9 +178,9 @@ export default function ReconciliationPage() {
         {filteredIssues.length === 0 ? (
           <EmptyState
             icon={<CheckCircle2 className="h-6 w-6 text-positive" />}
-            title="Integrity Verified"
-            message="Every recorded transaction and asset matches its mathematical ledger. There are no reconciliation issues to resolve."
-            actionLabel="Return to Dashboard"
+            title={t("reconciliation.integrityVerified")}
+            message={t("reconciliation.integrityVerifiedDesc")}
+            actionLabel={t("common.backToHome")}
             onAction={() => router.push("/")}
           />
         ) : (
@@ -215,7 +216,7 @@ export default function ReconciliationPage() {
                   <div className="rounded-xl bg-canvas p-2.5 text-[11.5px] text-ink-secondary flex items-start gap-2">
                     <Wrench className="h-3.5 w-3.5 text-brand-600 shrink-0 mt-0.5" />
                     <span>
-                      <strong className="text-ink">Suggested Action:</strong> {issue.suggestedAction}
+                      <strong className="text-ink">{t("reconciliation.suggestedAction")}:</strong> {issue.suggestedAction}
                     </span>
                   </div>
 
@@ -227,7 +228,7 @@ export default function ReconciliationPage() {
                         disabled={reconcilingId === issue.id}
                         className="rounded-lg bg-negative px-3 py-1 font-semibold text-white hover:bg-negative/90 disabled:opacity-50"
                       >
-                        {reconcilingId === issue.id ? "Deleting…" : "Delete Duplicate"}
+                        {reconcilingId === issue.id ? "…" : t("reconciliation.deleteDuplicate")}
                       </button>
                     ) : (
                       <button
@@ -235,7 +236,7 @@ export default function ReconciliationPage() {
                         onClick={() => handleNavigate(issue)}
                         className="flex items-center gap-1 font-semibold text-brand-700 hover:underline"
                       >
-                        <span>Open module to fix</span>
+                        <span>{t("reconciliation.openModuleToFix")}</span>
                         <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     )}

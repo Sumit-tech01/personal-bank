@@ -18,7 +18,7 @@ interface CropSheetProps {
 }
 
 export default function CropSheet({ open, onClose, crop, defaultLandId }: CropSheetProps) {
-  const { lands, saveCrop, notify } = useApp();
+  const { lands, saveCrop, notify, t } = useApp();
   const [name, setName] = useState("");
   const [variety, setVariety] = useState("");
   const [season, setSeason] = useState<Crop["season"]>("Kharif");
@@ -138,12 +138,12 @@ export default function CropSheet({ open, onClose, crop, defaultLandId }: CropSh
     <Sheet
       open={open}
       onClose={onClose}
-      title={crop ? "Edit crop" : "Add a crop"}
+      title={crop ? "Edit crop" : t("farm.addCrop")}
       subtitle="Track the crop, its plot and the season."
       footer={
         <button type="button" className="btn-primary w-full" onClick={save} disabled={busy}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          {busy ? "Saving…" : crop ? "Save changes" : "Save crop"}
+          {busy ? "…" : crop ? t("form.saveChanges") : t("common.save")}
         </button>
       }
       size="lg"

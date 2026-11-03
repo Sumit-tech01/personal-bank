@@ -41,7 +41,7 @@ const icons = { Tractor, Car, Bike, Other: Car };
 export default function VehicleDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { vehicles, transactions, loans, deleteVehicle, openAdd, notify } = useApp();
+  const { vehicles, transactions, loans, deleteVehicle, openAdd, notify, t } = useApp();
   const confirm = useConfirm();
 
   const [tab, setTab] = useState<VehicleTab>("OVERVIEW");
@@ -234,7 +234,7 @@ export default function VehicleDetailPage() {
                   : "text-ink-muted hover:text-ink"
               }`}
             >
-              Overview
+              {t("common.overview")}
             </button>
             <button
               type="button"
@@ -245,7 +245,7 @@ export default function VehicleDetailPage() {
                   : "text-ink-muted hover:text-ink"
               }`}
             >
-              Expenses ({vehicleTransactions.length})
+              {t("common.expenses")} ({vehicleTransactions.length})
             </button>
             <button
               type="button"
@@ -256,7 +256,7 @@ export default function VehicleDetailPage() {
                   : "text-ink-muted hover:text-ink"
               }`}
             >
-              Service ({vehicle.serviceHistory?.length || 0})
+              {t("vehicles.maintenance")} ({vehicle.serviceHistory?.length || 0})
             </button>
             {isTractor && (
               <button

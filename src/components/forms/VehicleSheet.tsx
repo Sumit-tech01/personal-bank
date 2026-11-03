@@ -19,7 +19,7 @@ interface VehicleSheetProps {
 }
 
 export default function VehicleSheet({ open, onClose, vehicle }: VehicleSheetProps) {
-  const { saveVehicle, notify } = useApp();
+  const { saveVehicle, notify, t } = useApp();
   const [name, setName] = useState("");
   const [type, setType] = useState<VehicleType>("Tractor");
   const [registrationNumber, setRegistrationNumber] = useState("");
@@ -186,12 +186,12 @@ export default function VehicleSheet({ open, onClose, vehicle }: VehicleSheetPro
     <Sheet
       open={open}
       onClose={onClose}
-      title={vehicle ? "Edit vehicle" : "Register a vehicle"}
+      title={vehicle ? t("vehicles.editVehicle") : t("vehicles.addVehicle")}
       subtitle="Keep fuel, maintenance, loans and paper dates organized in one place."
       footer={
         <button type="button" className="btn-primary w-full" onClick={save} disabled={busy || photoBusy}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          {busy ? "Saving…" : vehicle ? "Save changes" : "Register vehicle"}
+          {busy ? "…" : vehicle ? t("form.saveChanges") : t("common.save")}
         </button>
       }
       size="lg"

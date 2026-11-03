@@ -19,8 +19,8 @@ import StatCard from "@/components/ui/StatCard";
 import StatusPill from "@/components/ui/StatusPill";
 import LabourSheet from "@/components/forms/LabourSheet";
 import { labourReportDate, labourSummary } from "@/lib/finance";
-import { formatDate, formatMonthKey, inRange, monthKey, rangeForPreset } from "@/lib/dates";
-import { formatINR, sumPaise } from "@/lib/money";
+import { inRange, rangeForPreset } from "@/lib/dates";
+import { formatINR } from "@/lib/money";
 import type { DateRange, LabourPayment, PeriodPreset } from "@/lib/types";
 
 const PRESETS: PeriodPreset[] = ["THIS_MONTH", "LAST_MONTH", "THIS_YEAR"];
@@ -31,10 +31,10 @@ export default function LabourPage() {
   const {
     labourPayments,
     crops,
-    saveLabourPayment,
     markLabourPaid,
     deleteLabourPayment,
     notify,
+    t,
   } = useApp();
   const confirm = useConfirm();
   const [range, setRange] = useState<DateRange>(() => rangeForPreset("THIS_MONTH"));
@@ -60,15 +60,6 @@ export default function LabourPage() {
     [periodRows, status, cropId]
   );
 
-  const byMonth = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const payment of periodRows) {
-      const key = monthKey(labourReportDate(payment));
-      map.set(key, (map.get(key) ?? 0) + payment.amountPaise);
-    }
-    return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
-  }, [periodRows]);
-
   const openNew = () => {
     setEditing(null);
     setSheetOpen(true);
@@ -81,10 +72,10 @@ export default function LabourPage() {
 
   const handleDelete = async (payment: LabourPayment) => {
     const okay = await confirm({
-      title: "Delete this labour payment?",
-      message:
-        "The wage record and its linked farm expense will be removed. This cannot be undone.",
-      confirmLabel: "Delete",
+      title: t("dialog.confirmDelete"),
+      message: t("dialog.deleteWarning"),
+      confirmLabel: t("dialog.confirm"),
+      cancelLabel: t("dialog.cancel"),
       danger: true,
     });
     if (!okay) return;
@@ -99,8 +90,8 @@ export default function LabourPage() {
   return (
     <div className="min-h-[100dvh] bg-canvas">
       <PageHeader
-        title="Labour"
-        subtitle="Wages by crop, activity and month"
+        title={t("labour.title")}
+        subtitle={t("labour.subtitle")}
         backHref="/farm"
         right={
           <button
@@ -109,7 +100,7 @@ export default function LabourPage() {
             className="flex h-10 items-center gap-1.5 rounded-full bg-brand-600 px-3.5 text-[12px] font-semibold text-white"
           >
             <Plus className="h-4 w-4" />
-            Add
+            {t("common.add")}
           </button>
         }
       />
@@ -121,146 +112,104 @@ export default function LabourPage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                Labour cost in {range.label.toLowerCase()}
+                {t("labour.title")} · {range.label}
               </p>
               <p className="mt-1 text-[28px] font-semibold tracking-[-0.03em] text-ink">
                 {formatINR(summary.totalPaise)}
               </p>
               <p className="mt-0.5 text-[11.5px] text-ink-muted">
-                {summary.count} payment{summary.count === 1 ? "" : "s"} ·{" "}
-                {summary.totalWorkerDays} worker-day{summary.totalWorkerDays === 1 ? "" : "s"}
+                {summary.count === 1
+                  ? t("labour.paymentCount", { count: 1 })
+                  : t("labour.paymentCountPlural", { count: summary.count })}{" "}
+                ·{" "}
+                {summary.totalWorkerDays === 1
+                  ? t("labour.workerDay", { count: 1 })
+                  : t("labour.workerDayPlural", { count: summary.totalWorkerDays })}
               </p>
             </div>
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-light text-amber">
               <Users className="h-5 w-5" />
             </span>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2.5">
-            <StatCard label="Paid" value={formatINR(summary.paidPaise)} tone="positive" />
+
+          <div className="mt-4 grid grid-cols-3 gap-2.5">
             <StatCard
-              label="Pending"
+              label={t("labour.paid")}
+              value={formatINR(summary.paidPaise)}
+              hint={
+                summary.paidCount === 1
+                  ? t("labour.paymentCount", { count: 1 })
+                  : t("labour.paymentCountPlural", { count: summary.paidCount })
+              }
+              tone="positive"
+            />
+            <StatCard
+              label={t("labour.unpaid")}
               value={formatINR(summary.pendingPaise)}
-              tone={summary.pendingPaise > 0 ? "amber" : "default"}
+              hint={
+                summary.pendingCount === 1
+                  ? t("labour.paymentCount", { count: 1 })
+                  : t("labour.paymentCountPlural", { count: summary.pendingCount })
+              }
+              tone={summary.pendingPaise > 0 ? "amber" : "neutral"}
+            />
+            <StatCard
+              label={t("common.all")}
+              value={formatINR(allSummary.totalPaise)}
+              hint={`${allSummary.count} ${t("common.entries", { count: allSummary.count })}`}
             />
           </div>
-          {allSummary.pendingPaise > 0 && (
-            <p className="mt-3 rounded-xl bg-amber-light px-3 py-2 text-[11.5px] leading-4 text-amber">
-              {formatINR(allSummary.pendingPaise)} is pending across all time. Pending wages are
-              included in crop cost and profit, but not in cash spent.
-            </p>
-          )}
         </section>
 
-        <div className="flex flex-col gap-2">
-          <Segmented
-            options={[
-              { value: "ALL", label: "All", count: periodRows.length },
-              { value: "PAID", label: "Paid", count: periodRows.filter((p) => p.status === "PAID").length },
-              { value: "PARTIAL", label: "Partial", count: periodRows.filter((p) => p.status === "PARTIAL").length },
-              { value: "PENDING", label: "Pending", count: periodRows.filter((p) => p.status === "PENDING").length },
-            ]}
-            value={status}
-            onChange={(next) => setStatus(next as StatusTab)}
-            ariaLabel="Labour status"
-          />
-          <select className="select" value={cropId} onChange={(event) => setCropId(event.target.value)}>
-            <option value="">All crops</option>
-            {crops.map((crop) => (
-              <option key={crop.id} value={crop.id}>
-                {crop.name} · {crop.season} {crop.year}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Segmented
+          options={[
+            { value: "ALL", label: t("common.all"), count: periodRows.length },
+            {
+              value: "PAID",
+              label: t("labour.paidStatus"),
+              count: periodRows.filter((p) => p.status === "PAID").length,
+            },
+            {
+              value: "PARTIAL",
+              label: t("income.partial"),
+              count: periodRows.filter((p) => p.status === "PARTIAL").length,
+            },
+            {
+              value: "PENDING",
+              label: t("income.pending"),
+              count: periodRows.filter((p) => p.status === "PENDING").length,
+            },
+          ]}
+          value={status}
+          onChange={setStatus}
+          ariaLabel={t("labour.title")}
+        />
 
-        <section className="rounded-card border border-line bg-white p-4">
-          <h2 className="section-title">By crop</h2>
-          {summary.byCrop.length === 0 ? (
-            <p className="mt-2 rounded-xl bg-canvas px-3 py-3 text-[11.5px] text-ink-muted">
-              No labour in this period.
-            </p>
-          ) : (
-            <div className="mt-2 space-y-2">
-              {summary.byCrop.map((row) => (
-                <div key={row.name} className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate text-[12.5px] text-ink-secondary">
-                    {row.name}
-                    <span className="ml-1.5 text-[10px] text-ink-muted">({row.count})</span>
-                  </span>
-                  <span className="shrink-0 text-[12.5px] font-semibold text-ink">
-                    {formatINR(row.amountPaise)}
-                  </span>
-                </div>
+        {crops.length > 0 && (
+          <div className="flex items-center gap-2">
+            <label className="text-[12px] font-semibold text-ink-secondary">{t("farm.crops")}:</label>
+            <select
+              className="select h-9 flex-1 text-[12.5px]"
+              value={cropId}
+              onChange={(event) => setCropId(event.target.value)}
+            >
+              <option value="">{t("common.all")} {t("farm.crops")}</option>
+              {crops.map((crop) => (
+                <option key={crop.id} value={crop.id}>
+                  {crop.name}
+                </option>
               ))}
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-card border border-line bg-white p-4">
-          <h2 className="section-title">By activity</h2>
-          {summary.byActivity.length === 0 ? (
-            <p className="mt-2 rounded-xl bg-canvas px-3 py-3 text-[11.5px] text-ink-muted">
-              Add a labour payment to see activity totals.
-            </p>
-          ) : (
-            <div className="mt-2 space-y-2">
-              {summary.byActivity.map((row) => (
-                <div key={row.name} className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate text-[12.5px] text-ink-secondary">
-                    {row.name}
-                    <span className="ml-1.5 text-[10px] text-ink-muted">({row.count})</span>
-                  </span>
-                  <span className="shrink-0 text-[12.5px] font-semibold text-ink">
-                    {formatINR(row.amountPaise)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-card border border-line bg-white p-4">
-          <h2 className="section-title">By month</h2>
-          {byMonth.length === 0 ? (
-            <p className="mt-2 rounded-xl bg-canvas px-3 py-3 text-[11.5px] text-ink-muted">
-              No monthly labour cost in this period.
-            </p>
-          ) : (
-            <div className="mt-2 space-y-2">
-              {byMonth.map(([key, amount]) => (
-                <div key={key} className="flex items-center justify-between gap-3">
-                  <span className="text-[12.5px] text-ink-secondary">{formatMonthKey(key)}</span>
-                  <span className="text-[12.5px] font-semibold text-ink">{formatINR(amount)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+            </select>
+          </div>
+        )}
 
         <section>
-          <div className="mb-2 flex items-center justify-between">
-            <div>
-              <h2 className="section-title">Labour payments</h2>
-              <p className="text-[11.5px] text-ink-muted">
-                {rows.length} shown · tap to edit
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={openNew}
-              className="flex items-center gap-1 text-[12px] font-semibold text-brand-700"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add
-            </button>
-          </div>
-
           {rows.length === 0 ? (
             <EmptyState
               icon={<Users className="h-5 w-5" />}
-              title="No labour payments"
-              message="Record workers, rate and days. Paid wages become a farm expense automatically."
-              actionLabel="Add labour payment"
+              title={t("labour.noLabour")}
+              message={t("labour.subtitle")}
+              actionLabel={t("labour.addLabour")}
               onAction={openNew}
             />
           ) : (
@@ -277,13 +226,6 @@ export default function LabourPage() {
             </div>
           )}
         </section>
-
-        <div className="rounded-2xl bg-canvas px-4 py-3 text-[11.5px] leading-5 text-ink-secondary">
-          <strong className="text-ink">No double counting:</strong> a paid labour record creates
-          exactly one farm expense. The expense is linked, so editing or deleting the wage keeps
-          both sides in step. Paid wages are reported on their payment date; pending wages on
-          their work date.
-        </div>
       </main>
 
       <LabourSheet
@@ -309,6 +251,7 @@ function LabourRow({
   onMarkPaid: () => void;
   onDelete: () => void;
 }) {
+  const { t, formatDate } = useApp();
   const isPaid = payment.status === "PAID";
   const isPartial = payment.status === "PARTIAL";
 
@@ -335,20 +278,18 @@ function LabourRow({
                 {formatINR(payment.amountPaise)}
               </p>
               <StatusPill
-                label={isPaid ? "Paid" : isPartial ? "Partial" : "Pending"}
+                label={isPaid ? t("labour.paidStatus") : isPartial ? t("income.partial") : t("income.pending")}
                 tone={isPaid ? "positive" : "amber"}
               />
             </div>
           </div>
           <p className="mt-1 flex items-center gap-1 text-[10.5px] text-ink-muted">
             <CalendarDays className="h-3 w-3" />
-            {formatDate(payment.paidDate ?? payment.paymentDate)} · {payment.workers} worker
-            {payment.workers === 1 ? "" : "s"} × {formatINR(payment.ratePaise)} ×{" "}
-            {payment.days} day{payment.days === 1 ? "" : "s"}
+            {formatDate(payment.paidDate ?? payment.paymentDate)} · {payment.workers} × {formatINR(payment.ratePaise)} × {payment.days}
           </p>
           {isPartial && (
             <p className="mt-1 text-[11px] font-medium text-amber">
-              Paid: {formatINR(payment.paidPaise ?? 0)} · Remaining: {formatINR(payment.remainingPaise ?? 0)}
+              {t("labour.paid")}: {formatINR(payment.paidPaise ?? 0)} · {t("labour.unpaid")}: {formatINR(payment.remainingPaise ?? 0)}
             </p>
           )}
           {payment.description && (
@@ -364,14 +305,14 @@ function LabourRow({
             className="flex h-8 items-center gap-1 rounded-full bg-positive-light px-3 text-[11px] font-semibold text-positive"
           >
             <Check className="h-3.5 w-3.5" />
-            {isPartial ? "Pay remaining" : "Mark paid"}
+            {t("labour.markPaid")}
           </button>
         )}
         <button
           type="button"
           onClick={onEdit}
           className="flex h-8 w-8 items-center justify-center rounded-full text-ink-secondary"
-          aria-label="Edit labour payment"
+          aria-label={t("common.edit")}
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
@@ -379,7 +320,7 @@ function LabourRow({
           type="button"
           onClick={onDelete}
           className="flex h-8 w-8 items-center justify-center rounded-full text-negative"
-          aria-label="Delete labour payment"
+          aria-label={t("common.delete")}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>

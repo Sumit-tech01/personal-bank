@@ -12,13 +12,13 @@ import StatusPill from "@/components/ui/StatusPill";
 import ReminderCard from "@/components/ReminderCard";
 import ReminderSheet from "@/components/forms/ReminderSheet";
 import { reminderBuckets } from "@/lib/finance";
-import { formatDate, formatTime } from "@/lib/dates";
+import { formatTime } from "@/lib/dates";
 import type { Reminder } from "@/lib/types";
 
 type Tab = "TODAY" | "UPCOMING" | "OVERDUE" | "COMPLETED";
 
 export default function RemindersPage() {
-  const { reminders, completeReminder, reopenReminder, deleteReminder, notify } = useApp();
+  const { reminders, completeReminder, reopenReminder, deleteReminder, notify, t, formatDate } = useApp();
   const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>("TODAY");
   const [editing, setEditing] = useState<Reminder | null>(null);
@@ -57,9 +57,10 @@ export default function RemindersPage() {
 
   const handleDelete = async (reminder: Reminder) => {
     const okay = await confirm({
-      title: "Delete this reminder?",
-      message: "It will be removed from this device and from cloud sync.",
-      confirmLabel: "Delete",
+      title: t("dialog.confirmDelete"),
+      message: t("dialog.deleteWarning"),
+      confirmLabel: t("dialog.confirm"),
+      cancelLabel: t("dialog.cancel"),
       danger: true,
     });
     if (!okay) return;
@@ -71,8 +72,8 @@ export default function RemindersPage() {
   return (
     <div className="min-h-[100dvh] bg-canvas">
       <PageHeader
-        title="Important dates"
-        subtitle="Bills, tasks and family days"
+        title={t("reminders.title")}
+        subtitle={t("reminders.subtitle")}
         backHref="/more"
         right={
           <button
@@ -81,7 +82,7 @@ export default function RemindersPage() {
             className="flex h-10 items-center gap-1.5 rounded-full bg-brand-600 px-3.5 text-[12px] font-semibold text-white"
           >
             <Plus className="h-4 w-4" />
-            Add
+            {t("common.add")}
           </button>
         }
       />
@@ -91,19 +92,19 @@ export default function RemindersPage() {
           <div className="rounded-2xl border border-amber/25 bg-amber-light/60 px-3 py-3">
             <p className="flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-wide text-amber">
               <Clock className="h-3.5 w-3.5" />
-              Today
+              {t("reminders.today")}
             </p>
             <p className="mt-1 text-[20px] font-semibold text-ink">{buckets.today.length}</p>
           </div>
           <div className="rounded-2xl border border-line bg-white px-3 py-3">
             <p className="text-[10.5px] font-semibold uppercase tracking-wide text-ink-muted">
-              Upcoming
+              {t("reminders.upcoming")}
             </p>
             <p className="mt-1 text-[20px] font-semibold text-ink">{buckets.upcoming.length}</p>
           </div>
           <div className="rounded-2xl border border-negative/20 bg-negative-light/50 px-3 py-3">
             <p className="text-[10.5px] font-semibold uppercase tracking-wide text-negative">
-              Overdue
+              {t("reminders.overdue")}
             </p>
             <p className="mt-1 text-[20px] font-semibold text-ink">{buckets.overdue.length}</p>
           </div>
@@ -111,14 +112,14 @@ export default function RemindersPage() {
 
         <Segmented
           options={[
-            { value: "TODAY", label: "Today", count: buckets.today.length },
-            { value: "UPCOMING", label: "Upcoming", count: buckets.upcoming.length },
-            { value: "OVERDUE", label: "Overdue", count: buckets.overdue.length },
-            { value: "COMPLETED", label: "Done", count: buckets.completed.length },
+            { value: "TODAY", label: t("reminders.today"), count: buckets.today.length },
+            { value: "UPCOMING", label: t("reminders.upcoming"), count: buckets.upcoming.length },
+            { value: "OVERDUE", label: t("reminders.overdue"), count: buckets.overdue.length },
+            { value: "COMPLETED", label: t("reminders.done"), count: buckets.completed.length },
           ]}
           value={tab}
           onChange={(next) => setTab(next as Tab)}
-          ariaLabel="Reminder view"
+          ariaLabel={t("reminders.title")}
         />
 
         {rows.length === 0 ? (
@@ -126,19 +127,19 @@ export default function RemindersPage() {
             icon={<Bell className="h-5 w-5" />}
             title={
               tab === "TODAY"
-                ? "Nothing due today"
+                ? t("reminders.noDueToday")
                 : tab === "UPCOMING"
-                ? "No upcoming dates"
+                ? t("reminders.noUpcoming")
                 : tab === "OVERDUE"
-                ? "Nothing overdue"
-                : "No completed reminders"
+                ? t("reminders.allCaughtUp")
+                : t("reminders.noCompleted")
             }
             message={
               tab === "COMPLETED"
-                ? "Reminders you tick off will appear here."
-                : "Add a reminder for a bill, wage payment, crop task or family date."
+                ? t("reminders.noCompleted")
+                : t("dashboard.addReminderHint")
             }
-            actionLabel={tab === "COMPLETED" ? undefined : "Add reminder"}
+            actionLabel={tab === "COMPLETED" ? undefined : t("reminders.addReminder")}
             onAction={tab === "COMPLETED" ? undefined : openNew}
           />
         ) : (
@@ -154,11 +155,6 @@ export default function RemindersPage() {
             ))}
           </div>
         )}
-
-        <div className="rounded-2xl bg-canvas px-4 py-3 text-[11.5px] leading-5 text-ink-secondary">
-          Reminders are simple dates, not a calendar. A repeating reminder creates the next
-          date automatically when you mark it done.
-        </div>
       </main>
 
       <ReminderSheet
@@ -173,14 +169,14 @@ export default function RemindersPage() {
       <Sheet
         open={!!selected}
         onClose={() => setSelected(null)}
-        title={selected?.title ?? "Reminder"}
+        title={selected?.title ?? t("reminders.title")}
         subtitle={selected ? `${formatDate(selected.date, "long")}${selected.time ? ` · ${formatTime(selected.time)}` : ""}` : ""}
         footer={
           selected ? (
             <div className="grid grid-cols-2 gap-3">
               <button type="button" className="btn-secondary" onClick={() => openEdit(selected)}>
                 <Pencil className="h-4 w-4" />
-                Edit
+                {t("common.edit")}
               </button>
               <button
                 type="button"
@@ -188,7 +184,7 @@ export default function RemindersPage() {
                 onClick={() => void handleDelete(selected)}
               >
                 <Trash2 className="h-4 w-4" />
-                Delete
+                {t("common.delete")}
               </button>
             </div>
           ) : undefined
@@ -199,21 +195,9 @@ export default function RemindersPage() {
             <div className="flex flex-wrap items-center gap-2">
               <StatusPill label={selected.category} tone="brand" />
               <StatusPill
-                label={selected.completed ? "Completed" : "Open"}
+                label={selected.completed ? t("reminders.done") : t("loans.active")}
                 tone={selected.completed ? "positive" : "neutral"}
               />
-              {selected.repeat !== "NONE" && (
-                <StatusPill
-                  label={
-                    selected.repeat === "WEEKLY"
-                      ? "Every week"
-                      : selected.repeat === "MONTHLY"
-                      ? "Every month"
-                      : "Every year"
-                  }
-                  tone="neutral"
-                />
-              )}
             </div>
             <div className="rounded-2xl bg-canvas p-4">
               <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
@@ -237,7 +221,7 @@ export default function RemindersPage() {
               }}
             >
               <Check className="h-4 w-4" />
-              {selected.completed ? "Reopen reminder" : "Mark as done"}
+              {selected.completed ? t("common.actions") : t("reminders.markComplete")}
             </button>
           </div>
         )}

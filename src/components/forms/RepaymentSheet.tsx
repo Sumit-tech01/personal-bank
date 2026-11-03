@@ -26,7 +26,7 @@ export default function RepaymentSheet({
   loan,
   repayment,
 }: RepaymentSheetProps) {
-  const { addLoanRepayment, updateLoanRepayment, notify } = useApp();
+  const { addLoanRepayment, updateLoanRepayment, notify, t } = useApp();
 
   const [totalAmountPaise, setTotalAmountPaise] = useState(0);
   const [interestPaise, setInterestPaise] = useState(0);
@@ -202,7 +202,7 @@ export default function RepaymentSheet({
           disabled={busy || photoBusy || !loan}
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          {busy ? "Saving…" : repayment ? "Save changes" : "Save repayment"}
+          {busy ? "…" : repayment ? t("form.saveChanges") : t("common.save")}
         </button>
       }
     >

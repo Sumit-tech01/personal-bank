@@ -10,10 +10,11 @@ import { LockScreen, SetupScreen, SplashScreen } from "./auth/AuthScreens";
 import { todayISO } from "@/lib/dates";
 
 function DataLoadingScreen() {
+  const { t } = useApp();
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-canvas px-6">
       <Loader2 className="h-6 w-6 animate-spin text-brand-600" />
-      <p className="mt-3 text-[13px] text-ink-secondary">Opening your records…</p>
+      <p className="mt-3 text-[13px] text-ink-secondary">{t("auth.openingRecords")}</p>
     </div>
   );
 }
@@ -53,6 +54,7 @@ export default function AppRoot({ children }: { children: React.ReactNode }) {
     isOnline,
     reminders,
     preferences,
+    t,
   } = useApp();
 
   useEffect(() => {
@@ -128,7 +130,7 @@ export default function AppRoot({ children }: { children: React.ReactNode }) {
         {!isOnline && (
           <div className="no-print flex items-center justify-center gap-1.5 bg-amber-light px-4 py-2 text-center text-[11.5px] font-medium text-amber">
             <WifiOff className="h-3.5 w-3.5 shrink-0" />
-            You are offline. New records are being saved safely on this device.
+            {t("auth.offlineBanner")}
           </div>
         )}
         <div className="pb-nav">{children}</div>

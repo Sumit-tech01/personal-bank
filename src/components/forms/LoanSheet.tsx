@@ -35,7 +35,7 @@ export default function LoanSheet({
   loan,
   defaultType = "BORROWED",
 }: LoanSheetProps) {
-  const { saveLoan, vehicles, notify } = useApp();
+  const { saveLoan, vehicles, notify, t } = useApp();
 
   const [type, setType] = useState<LoanType>(defaultType);
   const [partyName, setPartyName] = useState("");
@@ -191,10 +191,10 @@ export default function LoanSheet({
       onClose={onClose}
       title={
         loan
-          ? `Edit ${type === "BORROWED" ? "Loan" : "Lending"}`
+          ? `Edit ${type === "BORROWED" ? t("form.moneyBorrowed") : t("form.moneyLent")}`
           : type === "BORROWED"
-          ? "Money Borrowed (Loan)"
-          : "Money Lent (Given)"
+          ? t("form.moneyBorrowed")
+          : t("form.moneyLent")
       }
       subtitle={
         type === "BORROWED"
@@ -209,7 +209,7 @@ export default function LoanSheet({
           disabled={busy || photoBusy}
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          {busy ? "Saving…" : loan ? "Save changes" : "Save loan record"}
+          {busy ? "…" : loan ? t("form.saveChanges") : t("common.save")}
         </button>
       }
       size="lg"
@@ -218,7 +218,7 @@ export default function LoanSheet({
         {/* Record Type Selector */}
         {!loan && (
           <div>
-            <label className="label">Loan Type</label>
+            <label className="label">{t("common.type")}</label>
             <div className="grid grid-cols-2 gap-2.5">
               {(["BORROWED", "LENT"] as const).map((option) => (
                 <button
@@ -232,7 +232,7 @@ export default function LoanSheet({
                   }`}
                 >
                   <span className="block text-[13px] font-semibold text-ink">
-                    {option === "BORROWED" ? "We Borrowed" : "We Lent"}
+                    {option === "BORROWED" ? t("form.moneyBorrowed") : t("form.moneyLent")}
                   </span>
                   <span className="mt-0.5 block text-[11px] text-ink-muted">
                     {option === "BORROWED" ? "Money we owe" : "Money given to others"}

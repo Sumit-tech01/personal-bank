@@ -21,7 +21,7 @@ import Sheet from "@/components/ui/Sheet";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { calculateTotals } from "@/lib/finance";
-import { formatDate, inRange, rangeForPreset, relativeDayLabel } from "@/lib/dates";
+import { inRange, rangeForPreset, relativeDayLabel } from "@/lib/dates";
 import { formatINR } from "@/lib/money";
 import type { DateRange, Transaction } from "@/lib/types";
 
@@ -33,6 +33,8 @@ export default function TransactionsPage() {
     openAdd,
     deleteTransaction,
     notify,
+    t,
+    formatDate,
   } = useApp();
   const confirm = useConfirm();
   const router = useRouter();
@@ -75,9 +77,10 @@ export default function TransactionsPage() {
   const handleDelete = async () => {
     if (!selected) return;
     const okay = await confirm({
-      title: "Delete this record?",
-      message: "It will be removed from your device and from cloud sync. This cannot be undone.",
-      confirmLabel: "Delete",
+      title: t("dialog.confirmDelete"),
+      message: t("dialog.deleteWarning"),
+      confirmLabel: t("dialog.confirm"),
+      cancelLabel: t("dialog.cancel"),
       danger: true,
     });
     if (!okay) return;
@@ -93,8 +96,8 @@ export default function TransactionsPage() {
   return (
     <div className="min-h-[100dvh] bg-canvas">
       <PageHeader
-        title="All transactions"
-        subtitle="Every rupee in and out, in one list"
+        title={t("transactions.title")}
+        subtitle={t("transactions.subtitle")}
         backHref="/more"
         right={
           <button
@@ -103,7 +106,7 @@ export default function TransactionsPage() {
             className="flex h-10 items-center gap-1.5 rounded-full bg-brand-600 px-3.5 text-[12px] font-semibold text-white"
           >
             <Plus className="h-4 w-4" />
-            Add
+            {t("common.add")}
           </button>
         }
       />
@@ -117,7 +120,7 @@ export default function TransactionsPage() {
             className="input pl-11"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search description, category, crop…"
+            placeholder={t("transactions.searchPlaceholder")}
             type="search"
             aria-label="Search transactions"
           />
@@ -125,44 +128,40 @@ export default function TransactionsPage() {
 
         <Segmented
           options={[
-            { value: "ALL", label: "All", count: filtered.length },
-            { value: "INCOME", label: "Money in" },
-            { value: "EXPENSE", label: "Money out" },
+            { value: "ALL", label: t("transactions.filterAll"), count: filtered.length },
+            { value: "INCOME", label: t("dashboard.moneyIn") },
+            { value: "EXPENSE", label: t("dashboard.moneyOut") },
           ]}
           value={kind}
           onChange={setKind}
-          ariaLabel="Transaction type"
+          ariaLabel={t("transactions.title")}
         />
 
         <div className="grid grid-cols-3 gap-2.5">
-          <StatCard label="Money in" value={formatINR(totals.incomePaise)} tone="positive" />
-          <StatCard label="Money out" value={formatINR(totals.expensePaise)} tone="negative" />
+          <StatCard label={t("dashboard.moneyIn")} value={formatINR(totals.incomePaise)} tone="positive" />
+          <StatCard label={t("dashboard.moneyOut")} value={formatINR(totals.expensePaise)} tone="negative" />
           <StatCard
-            label="Net"
+            label={t("reports.net")}
             value={formatINR(totals.netPaise)}
-            tone={totals.netPaise < 0 ? "negative" : "brand"}
+            tone={totals.netPaise >= 0 ? "positive" : "negative"}
           />
         </div>
 
-        {grouped.length === 0 ? (
+        {filtered.length === 0 ? (
           <EmptyState
-            icon={<Search className="h-5 w-5" />}
-            title="No matching records"
-            message="Try a different period, clear the search, or add a new record."
-            actionLabel="Add a record"
+            title={t("transactions.noTransactions")}
+            message={t("transactions.subtitle")}
+            actionLabel={t("nav.addRecord")}
             onAction={() => openAdd()}
           />
         ) : (
           <div className="space-y-4">
             {grouped.map(([date, rows]) => (
               <section key={date}>
-                <div className="mb-1.5 flex items-center justify-between px-1">
-                  <h2 className="text-[12px] font-semibold text-ink-secondary">
-                    {relativeDayLabel(date)}
-                  </h2>
-                  <span className="text-[10.5px] text-ink-muted">{formatDate(date)}</span>
-                </div>
-                <div className="overflow-hidden rounded-card border border-line bg-white">
+                <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                  {relativeDayLabel(date)} · {formatDate(date, "short")}
+                </p>
+                <div className="overflow-hidden rounded-2xl border border-line bg-white">
                   <div className="divide-y divide-line/70">
                     {rows.map((transaction) => (
                       <TransactionItem
@@ -183,8 +182,8 @@ export default function TransactionsPage() {
       <Sheet
         open={!!selected}
         onClose={() => setSelected(null)}
-        title="Record details"
-        subtitle="View, edit or delete this record."
+        title={t("transactions.title")}
+        subtitle={selected ? `${selected.category} · ${formatDate(selected.date, "long")}` : ""}
         footer={
           selected ? (
             <div className="grid grid-cols-2 gap-3">
@@ -205,12 +204,12 @@ export default function TransactionsPage() {
                 {selected.labourPaymentId ? (
                   <>
                     <Users className="h-4 w-4" />
-                    Open Labour
+                    {t("farm.openLabour")}
                   </>
                 ) : (
                   <>
                     <Pencil className="h-4 w-4" />
-                    Edit
+                    {t("common.edit")}
                   </>
                 )}
               </button>
@@ -221,7 +220,7 @@ export default function TransactionsPage() {
                 disabled={!!selected.labourPaymentId}
               >
                 <Trash2 className="h-4 w-4" />
-                Delete
+                {t("common.delete")}
               </button>
             </div>
           ) : undefined
@@ -232,7 +231,7 @@ export default function TransactionsPage() {
             <div className="rounded-2xl bg-canvas p-4">
               <div className="flex items-center justify-between gap-3">
                 <StatusPill
-                  label={selected.kind === "INCOME" ? "Money in" : "Money out"}
+                  label={selected.kind === "INCOME" ? t("dashboard.moneyIn") : t("dashboard.moneyOut")}
                   tone={selected.kind === "INCOME" ? "positive" : "negative"}
                 />
                 <p
@@ -254,41 +253,13 @@ export default function TransactionsPage() {
 
             <div className="space-y-2 rounded-2xl border border-line bg-white p-4 text-[12.5px]">
               <DetailRow
-                label="Payment method"
+                label={t("form.paymentMethod")}
                 value={PAYMENT_METHOD_LABELS[selected.paymentMethod]}
               />
-              {selected.cropName && <DetailRow label="Crop" value={selected.cropName} />}
-              {selected.vehicleName && <DetailRow label="Vehicle" value={selected.vehicleName} />}
-              {selected.kind === "INCOME" && (
-                <DetailRow
-                  label="Status"
-                  value={selected.incomeStatus === "PENDING" ? "Not received yet" : "Received"}
-                />
-              )}
-              {selected.notes && <DetailRow label="Notes" value={selected.notes} />}
-              {selected.labourPaymentId && (
-                <DetailRow label="Linked to" value="Labour payment" />
-              )}
+              {selected.cropName && <DetailRow label={t("farm.crops")} value={selected.cropName} />}
+              {selected.vehicleName && <DetailRow label={t("vehicles.title")} value={selected.vehicleName} />}
+              {selected.notes && <DetailRow label={t("common.notes")} value={selected.notes} />}
             </div>
-
-            {selected.receiptDataUrl && (
-              <div>
-                <p className="label">Receipt</p>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={selected.receiptDataUrl}
-                  alt="Receipt"
-                  className="max-h-64 w-full rounded-2xl object-contain"
-                />
-              </div>
-            )}
-
-            {selected.labourPaymentId && (
-              <p className="rounded-xl bg-amber-light px-3.5 py-2.5 text-[11.5px] leading-5 text-amber">
-                This expense was created from a labour payment. Edit or delete it from Labour so
-                the wage record stays correct.
-              </p>
-            )}
           </div>
         )}
       </Sheet>

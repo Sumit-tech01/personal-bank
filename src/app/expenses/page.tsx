@@ -1,19 +1,14 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowDownRight,
   ArrowUpRight,
-  Calendar,
   Check,
-  ChevronRight,
-  Clock,
   CreditCard,
   Fuel,
   Home as HomeIcon,
-  MapPin,
   Plus,
   Receipt,
   Shield,
@@ -45,51 +40,10 @@ import {
   rangeForPreset,
   toISODate,
 } from "@/lib/dates";
-import { formatINR, percentOf, sumPaise } from "@/lib/money";
-import type { DateRange, ExpenseGroup, LabourPayment, PeriodPreset } from "@/lib/types";
+import { formatINR, percentOf } from "@/lib/money";
+import type { DateRange, ExpenseGroup, PeriodPreset } from "@/lib/types";
 
 type GroupTab = "HOME" | "FARM" | "LABOUR" | "VEHICLE";
-
-const GROUP_META: Record<
-  GroupTab,
-  {
-    label: string;
-    title: string;
-    description: string;
-    icon: React.ReactNode;
-    addType: "HOME_EXPENSE" | "FARM_EXPENSE" | "LABOUR" | "VEHICLE_EXPENSE";
-    defaults?: { expenseGroup?: ExpenseGroup };
-  }
-> = {
-  HOME: {
-    label: "Home",
-    title: "Home Expenses",
-    description: "Groceries, bills, medical, school, and family needs.",
-    icon: <HomeIcon className="h-4 w-4" />,
-    addType: "HOME_EXPENSE",
-  },
-  FARM: {
-    label: "Farm",
-    title: "Farm Expenses",
-    description: "Seeds, fertilizers, irrigation, machinery, and materials.",
-    icon: <Sprout className="h-4 w-4" />,
-    addType: "FARM_EXPENSE",
-  },
-  LABOUR: {
-    label: "Labour",
-    title: "Labour Expenses",
-    description: "Worker wages, daily rates, partial payments, and balances.",
-    icon: <Users className="h-4 w-4" />,
-    addType: "LABOUR",
-  },
-  VEHICLE: {
-    label: "Vehicle",
-    title: "Vehicle Expenses",
-    description: "Fuel, servicing, insurance, tyres, and repairs.",
-    icon: <Tractor className="h-4 w-4" />,
-    addType: "VEHICLE_EXPENSE",
-  },
-};
 
 const PRESETS: PeriodPreset[] = ["THIS_MONTH", "LAST_MONTH", "THIS_YEAR", "ALL_TIME"];
 
@@ -125,11 +79,11 @@ export default function ExpensesPage() {
     labourPayments,
     crops,
     lands,
-    vehicles,
     openAdd,
     addCustomCategory,
     markLabourPaid,
     notify,
+    t,
   } = useApp();
   const router = useRouter();
   const [range, setRange] = useState<DateRange>(() => rangeForPreset("THIS_MONTH"));
@@ -139,6 +93,58 @@ export default function ExpensesPage() {
   const [selectedLandId, setSelectedLandId] = useState<string>("");
   const [newCategory, setNewCategory] = useState("");
   const [showNewCategory, setShowNewCategory] = useState(false);
+
+  const getTabLabel = (gt: GroupTab): string => {
+    switch (gt) {
+      case "HOME":
+        return t("expenses.homeGroup");
+      case "FARM":
+        return t("expenses.farmGroup");
+      case "LABOUR":
+        return t("expenses.labourGroup");
+      case "VEHICLE":
+        return t("expenses.vehicleGroup");
+    }
+  };
+
+  const getTabTitle = (gt: GroupTab): string => {
+    switch (gt) {
+      case "HOME":
+        return t("expenses.homeTitle");
+      case "FARM":
+        return t("expenses.farmTitle");
+      case "LABOUR":
+        return t("expenses.labourTitle");
+      case "VEHICLE":
+        return t("expenses.vehicleTitle");
+    }
+  };
+
+  const getTabDesc = (gt: GroupTab): string => {
+    switch (gt) {
+      case "HOME":
+        return t("expenses.homeDesc");
+      case "FARM":
+        return t("expenses.farmDesc");
+      case "LABOUR":
+        return t("expenses.labourDesc");
+      case "VEHICLE":
+        return t("expenses.vehicleDesc");
+    }
+  };
+
+  const GROUP_META: Record<
+    GroupTab,
+    {
+      addType: "HOME_EXPENSE" | "FARM_EXPENSE" | "LABOUR" | "VEHICLE_EXPENSE";
+      defaults?: { expenseGroup?: ExpenseGroup };
+    }
+  > = {
+    HOME: { addType: "HOME_EXPENSE" },
+    FARM: { addType: "FARM_EXPENSE" },
+    LABOUR: { addType: "LABOUR" },
+    VEHICLE: { addType: "VEHICLE_EXPENSE" },
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -162,7 +168,7 @@ export default function ExpensesPage() {
     if (tab === "FARM") return breakdown.farmPaise;
     if (tab === "LABOUR") return breakdown.labourPaise;
     return breakdown.vehiclePaise;
-  }, [tab, breakdown]);
+  }, [breakdown, tab]);
 
   const previousGroupAmount = useMemo(() => {
     if (!previousBreakdown) return 0;
@@ -170,32 +176,29 @@ export default function ExpensesPage() {
     if (tab === "FARM") return previousBreakdown.farmPaise;
     if (tab === "LABOUR") return previousBreakdown.labourPaise;
     return previousBreakdown.vehiclePaise;
-  }, [tab, previousBreakdown]);
+  }, [previousBreakdown, tab]);
 
-  // Counts of records
+  // Counts
   const counts = useMemo(() => {
-    const res: Record<GroupTab, number> = { HOME: 0, FARM: 0, LABOUR: 0, VEHICLE: 0 };
+    let home = 0;
+    let farm = 0;
+    let vehicle = 0;
     for (const transaction of transactions) {
       if (transaction.kind !== "EXPENSE" || !inRange(transaction.date, range)) continue;
-      if (transaction.group === "HOME") res.HOME += 1;
+      if (transaction.group === "HOME" || transaction.group === "OTHER") home += 1;
       else if (transaction.group === "FARM") {
-        if (transaction.category === "Labour" || transaction.labourPaymentId) res.LABOUR += 1;
-        else res.FARM += 1;
-      } else if (transaction.group === "VEHICLE") res.VEHICLE += 1;
+        if (!transaction.labourPaymentId && transaction.category !== "Labour") farm += 1;
+      } else if (transaction.group === "VEHICLE") vehicle += 1;
     }
-    // Also include pending labour count in labour tab if applicable
-    const pendingLabourCount = labourPayments.filter(
-      (lp) => (lp.status === "PENDING" || lp.status === "PARTIAL") && inRange(labourReportDate(lp), range)
-    ).length;
-    res.LABOUR += pendingLabourCount;
-    return res;
+    const labourCount = labourPayments.filter((p) => inRange(labourReportDate(p), range)).length;
+    return { HOME: home, FARM: farm, LABOUR: labourCount, VEHICLE: vehicle };
   }, [transactions, labourPayments, range]);
 
-  // Filtered transactions for HOME, FARM, VEHICLE
+  // Filtered transactions for current tab
   const filteredTransactions = useMemo(() => {
+    if (tab === "LABOUR") return [];
     return transactions.filter((transaction) => {
-      if (transaction.kind !== "EXPENSE") return false;
-      if (!inRange(transaction.date, range)) return false;
+      if (transaction.kind !== "EXPENSE" || !inRange(transaction.date, range)) return false;
 
       if (tab === "HOME") {
         if (transaction.group !== "HOME") return false;
@@ -220,7 +223,6 @@ export default function ExpensesPage() {
     const group: ExpenseGroup = tab === "HOME" ? "HOME" : tab === "FARM" ? "FARM" : "VEHICLE";
     const rows = categoryTotals(transactions, { kind: "EXPENSE", group, range });
     if (tab === "FARM") {
-      // Exclude Labour from Farm materials list
       return rows.filter((r) => r.category !== "Labour");
     }
     return rows;
@@ -269,7 +271,6 @@ export default function ExpensesPage() {
       else otherPaise += tx.amountPaise;
     }
 
-    // Vehicle spending by vehicle id
     const byVehicle = new Map<string, { id: string; name: string; amountPaise: number }>();
     for (const tx of transactions) {
       if (tx.kind !== "EXPENSE" || tx.group !== "VEHICLE" || !inRange(tx.date, range)) continue;
@@ -374,8 +375,8 @@ export default function ExpensesPage() {
   return (
     <div className="min-h-[100dvh] bg-canvas">
       <PageHeader
-        title="Expenses"
-        subtitle="Home, farm, labour and vehicle management"
+        title={t("expenses.title")}
+        subtitle={t("expenses.subtitle")}
         right={
           <button
             type="button"
@@ -383,7 +384,7 @@ export default function ExpensesPage() {
             className="flex h-10 items-center gap-1.5 rounded-full bg-brand-600 px-3.5 text-[12px] font-semibold text-white shadow-sm transition active:scale-95"
           >
             <Plus className="h-4 w-4" />
-            Add {GROUP_META[tab].label}
+            {t("common.add")} {getTabLabel(tab)}
           </button>
         }
       />
@@ -393,10 +394,10 @@ export default function ExpensesPage() {
 
         <Segmented
           options={[
-            { value: "HOME", label: "Home", count: counts.HOME },
-            { value: "FARM", label: "Farm", count: counts.FARM },
-            { value: "LABOUR", label: "Labour", count: counts.LABOUR },
-            { value: "VEHICLE", label: "Vehicle", count: counts.VEHICLE },
+            { value: "HOME", label: t("expenses.homeGroup"), count: counts.HOME },
+            { value: "FARM", label: t("expenses.farmGroup"), count: counts.FARM },
+            { value: "LABOUR", label: t("expenses.labourGroup"), count: counts.LABOUR },
+            { value: "VEHICLE", label: t("expenses.vehicleGroup"), count: counts.VEHICLE },
           ]}
           value={tab}
           onChange={(next) => {
@@ -405,7 +406,7 @@ export default function ExpensesPage() {
             setSelectedCropId("");
             setSelectedLandId("");
           }}
-          ariaLabel="Expense group"
+          ariaLabel={t("expenses.title")}
         />
 
         {/* Tab 1: Home Expenses */}
@@ -417,25 +418,27 @@ export default function ExpensesPage() {
                   <HomeIcon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-[15px] font-semibold text-ink">Home Expenses</h2>
+                  <h2 className="text-[15px] font-semibold text-ink">{getTabTitle("HOME")}</h2>
                   <p className="mt-0.5 text-[11.5px] leading-4 text-ink-secondary">
-                    Groceries, bills, medical, school and family needs.
+                    {getTabDesc("HOME")}
                   </p>
                 </div>
               </div>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div>
-                  <p className="text-[11px] text-ink-muted">Total in {range.label.toLowerCase()}</p>
+                  <p className="text-[11px] text-ink-muted">{t("common.total")} · {range.label}</p>
                   <p className="mt-0.5 text-[26px] font-semibold tracking-[-0.03em] text-ink">
                     {formatINR(groupAmount)}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-[11px] text-ink-muted">
-                    {percentOf(groupAmount, breakdown.totalPaise)}% of all spending
+                    {percentOf(groupAmount, breakdown.totalPaise)}%
                   </p>
                   <p className="mt-0.5 text-[12px] font-semibold text-ink-secondary">
-                    {counts.HOME} record{counts.HOME === 1 ? "" : "s"}
+                    {counts.HOME === 1
+                      ? t("expenses.recordsCount", { count: 1 })
+                      : t("expenses.recordsCountPlural", { count: counts.HOME })}
                   </p>
                 </div>
               </div>
@@ -453,14 +456,14 @@ export default function ExpensesPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[12px] font-semibold text-ink">
-                      Compared with {previous.label}
+                      {t("expenses.compareVs", { period: previous.label })}
                     </p>
                     <p className="mt-0.5 text-[11px] text-ink-muted">
-                      {formatINR(previousGroupAmount)} spent then
+                      {formatINR(previousGroupAmount)}
                     </p>
                   </div>
                   {change === null ? (
-                    <StatusPill label="No earlier data" tone="neutral" />
+                    <StatusPill label="—" tone="neutral" />
                   ) : (
                     <StatusPill
                       label={`${change > 0 ? "+" : ""}${change}%`}
@@ -477,10 +480,8 @@ export default function ExpensesPage() {
                       <ArrowDownRight className="h-3.5 w-3.5 text-positive" />
                     )}
                     {change > 0
-                      ? `You spent ${Math.abs(change)}% more than the previous period.`
-                      : change < 0
-                      ? `You spent ${Math.abs(change)}% less than the previous period.`
-                      : "Spending is the same as the previous period."}
+                      ? `+${Math.abs(change)}%`
+                      : `−${Math.abs(change)}%`}
                   </div>
                 )}
               </section>
@@ -489,41 +490,29 @@ export default function ExpensesPage() {
             <section className="rounded-card border border-line bg-white p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[12px] font-semibold text-ink">Monthly grocery tracker</p>
+                  <p className="text-[12px] font-semibold text-ink">{t("expenses.homeTitle")}</p>
                   <p className="text-[11px] text-ink-muted">{thisMonthRange.label}</p>
                 </div>
                 <Receipt className="h-4 w-4 text-brand-700" />
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2.5">
                 <div className="rounded-xl bg-canvas/80 px-3 py-2.5">
-                  <p className="text-[10.5px] text-ink-muted">Groceries this month</p>
+                  <p className="text-[10.5px] text-ink-muted">{t("period.thisMonth")}</p>
                   <p className="mt-0.5 text-[17px] font-semibold text-ink">
                     {formatINR(groceriesThisMonth?.amountPaise ?? 0)}
                   </p>
-                  <p className="mt-0.5 text-[10px] text-ink-muted">
-                    {groceriesThisMonth?.count ?? 0} entr{(groceriesThisMonth?.count ?? 0) === 1 ? "y" : "ies"} ·{" "}
-                    {formatINR(
-                      Math.round(
-                        (groceriesThisMonth?.amountPaise ?? 0) / Math.max(1, new Date().getDate())
-                      )
-                    )}{" "}
-                    per day
-                  </p>
                 </div>
                 <div className="rounded-xl bg-canvas/80 px-3 py-2.5">
-                  <p className="text-[10.5px] text-ink-muted">Last month</p>
+                  <p className="text-[10.5px] text-ink-muted">{t("period.lastMonth")}</p>
                   <p className="mt-0.5 text-[17px] font-semibold text-ink">
                     {formatINR(groceriesLastMonth?.amountPaise ?? 0)}
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-ink-muted">
-                    {groceriesLastMonth?.count ?? 0} entr{(groceriesLastMonth?.count ?? 0) === 1 ? "y" : "ies"}
                   </p>
                 </div>
               </div>
               <div className="mt-3">
                 <div className="mb-1 flex items-center justify-between text-[10.5px] text-ink-muted">
-                  <span>This month against last month</span>
-                  <span>{groceryRatio === null ? "No earlier data" : `${groceryRatio}%`}</span>
+                  <span>{t("reports.thisMonthVsLast")}</span>
+                  <span>{groceryRatio === null ? "—" : `${groceryRatio}%`}</span>
                 </div>
                 <ProgressBar
                   value={groceryRatio === null ? 0 : Math.min(100, groceryRatio)}
@@ -544,25 +533,27 @@ export default function ExpensesPage() {
                   <Sprout className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-[15px] font-semibold text-ink">Farm Expenses</h2>
+                  <h2 className="text-[15px] font-semibold text-ink">{getTabTitle("FARM")}</h2>
                   <p className="mt-0.5 text-[11.5px] leading-4 text-ink-secondary">
-                    Seeds, fertilizers, irrigation, machinery, and materials.
+                    {getTabDesc("FARM")}
                   </p>
                 </div>
               </div>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div>
-                  <p className="text-[11px] text-ink-muted">Materials & machinery in {range.label.toLowerCase()}</p>
+                  <p className="text-[11px] text-ink-muted">{t("common.total")} · {range.label}</p>
                   <p className="mt-0.5 text-[26px] font-semibold tracking-[-0.03em] text-ink">
                     {formatINR(groupAmount)}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-[11px] text-ink-muted">
-                    {percentOf(groupAmount, breakdown.totalPaise)}% of spending
+                    {percentOf(groupAmount, breakdown.totalPaise)}%
                   </p>
                   <p className="mt-0.5 text-[12px] font-semibold text-ink-secondary">
-                    {counts.FARM} record{counts.FARM === 1 ? "" : "s"}
+                    {counts.FARM === 1
+                      ? t("expenses.recordsCount", { count: 1 })
+                      : t("expenses.recordsCountPlural", { count: counts.FARM })}
                   </p>
                 </div>
               </div>
@@ -580,13 +571,13 @@ export default function ExpensesPage() {
               <section className="rounded-2xl border border-line bg-white p-3">
                 <div className="grid grid-cols-2 gap-2 text-[12px]">
                   <div>
-                    <label className="text-[10.5px] font-semibold text-ink-muted uppercase">Filter Crop</label>
+                    <label className="text-[10.5px] font-semibold text-ink-muted uppercase">{t("farm.crops")}</label>
                     <select
                       className="select mt-1 h-9 text-[12px]"
                       value={selectedCropId}
                       onChange={(e) => setSelectedCropId(e.target.value)}
                     >
-                      <option value="">All Crops</option>
+                      <option value="">{t("common.all")} {t("farm.crops")}</option>
                       {crops.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name} ({c.season})
@@ -595,13 +586,13 @@ export default function ExpensesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10.5px] font-semibold text-ink-muted uppercase">Filter Land Parcel</label>
+                    <label className="text-[10.5px] font-semibold text-ink-muted uppercase">{t("farm.lands")}</label>
                     <select
                       className="select mt-1 h-9 text-[12px]"
                       value={selectedLandId}
                       onChange={(e) => setSelectedLandId(e.target.value)}
                     >
-                      <option value="">All Parcels</option>
+                      <option value="">{t("common.all")} {t("farm.lands")}</option>
                       {lands.map((l) => (
                         <option key={l.id} value={l.id}>
                           {l.name}
@@ -616,7 +607,7 @@ export default function ExpensesPage() {
             {/* Crop-wise farm investment summary */}
             {farmCropBreakdown.length > 0 && (
               <section className="rounded-card border border-line bg-white p-4">
-                <h3 className="section-title mb-2">Crop Investment Breakdown</h3>
+                <h3 className="section-title mb-2">{t("crop.expenseBreakdown")}</h3>
                 <div className="space-y-2">
                   {farmCropBreakdown.map((item) => (
                     <div
@@ -647,33 +638,45 @@ export default function ExpensesPage() {
                   <Users className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-[15px] font-semibold text-ink">Labour Expenses</h2>
+                  <h2 className="text-[15px] font-semibold text-ink">{getTabTitle("LABOUR")}</h2>
                   <p className="mt-0.5 text-[11.5px] leading-4 text-ink-secondary">
-                    Daily wages, workers × rate × days, and balances.
+                    {getTabDesc("LABOUR")}
                   </p>
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-xl bg-canvas/80 p-2.5">
-                  <p className="text-[10px] text-ink-muted">Total Cost</p>
+                  <p className="text-[10px] text-ink-muted">{t("common.total")}</p>
                   <p className="mt-0.5 text-[15px] font-semibold text-ink">
                     {formatINR(labourStats.totalPaise)}
                   </p>
-                  <p className="text-[9.5px] text-ink-muted">{labourStats.totalWorkerDays} work days</p>
+                  <p className="text-[9.5px] text-ink-muted">
+                    {labourStats.totalWorkerDays === 1
+                      ? t("labour.workerDay", { count: 1 })
+                      : t("labour.workerDayPlural", { count: labourStats.totalWorkerDays })}
+                  </p>
                 </div>
                 <div className="rounded-xl bg-positive-light/60 p-2.5">
-                  <p className="text-[10px] text-positive">Paid Cash</p>
+                  <p className="text-[10px] text-positive">{t("labour.paidStatus")}</p>
                   <p className="mt-0.5 text-[15px] font-semibold text-positive">
                     {formatINR(labourStats.paidPaise)}
                   </p>
-                  <p className="text-[9.5px] text-positive/80">{labourStats.paidCount} paid</p>
+                  <p className="text-[9.5px] text-positive/80">
+                    {labourStats.paidCount === 1
+                      ? t("labour.paymentCount", { count: 1 })
+                      : t("labour.paymentCountPlural", { count: labourStats.paidCount })}
+                  </p>
                 </div>
                 <div className="rounded-xl bg-amber-light/60 p-2.5">
-                  <p className="text-[10px] text-amber">Outstanding</p>
+                  <p className="text-[10px] text-amber">{t("labour.pendingStatus")}</p>
                   <p className="mt-0.5 text-[15px] font-semibold text-amber">
                     {formatINR(labourStats.pendingPaise)}
                   </p>
-                  <p className="text-[9.5px] text-amber/80">{labourStats.pendingCount} pending</p>
+                  <p className="text-[9.5px] text-amber/80">
+                    {labourStats.pendingCount === 1
+                      ? t("labour.paymentCount", { count: 1 })
+                      : t("labour.paymentCountPlural", { count: labourStats.pendingCount })}
+                  </p>
                 </div>
               </div>
             </section>
@@ -683,10 +686,10 @@ export default function ExpensesPage() {
               <section className="rounded-card border border-amber/40 bg-amber-light/30 p-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-[13px] font-semibold text-amber-900">
-                    Outstanding Wages ({pendingLabour.length})
+                    {t("labour.unpaid")} ({pendingLabour.length})
                   </h3>
                   <span className="text-[11.5px] font-bold text-amber">
-                    {formatINR(labourStats.pendingPaise)} to pay
+                    {formatINR(labourStats.pendingPaise)}
                   </span>
                 </div>
                 <div className="mt-2.5 space-y-2">
@@ -701,16 +704,16 @@ export default function ExpensesPage() {
                             {item.workerName ? `${item.workerName} · ${item.activity}` : `${item.cropName} · ${item.activity}`}
                           </p>
                           <StatusPill
-                            label={item.status === "PARTIAL" ? "Partial" : "Unpaid"}
+                            label={item.status === "PARTIAL" ? t("income.partial") : t("income.pending")}
                             tone={item.status === "PARTIAL" ? "amber" : "negative"}
                           />
                         </div>
                         <p className="mt-0.5 text-[11px] text-ink-muted">
-                          {item.workers} workers × {item.days} days · Due {formatDate(item.paymentDate)}
+                          {item.workers} × {item.days} · {formatDate(item.paymentDate)}
                         </p>
                         {item.status === "PARTIAL" && (
                           <p className="text-[10px] text-positive">
-                            Paid {formatINR(item.paidPaise ?? 0)} · Remaining: {formatINR(item.remainingPaise ?? 0)}
+                            {t("labour.paid")}: {formatINR(item.paidPaise ?? 0)} · {t("labour.unpaid")}: {formatINR(item.remainingPaise ?? 0)}
                           </p>
                         )}
                       </div>
@@ -720,7 +723,7 @@ export default function ExpensesPage() {
                         className="ml-2 flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-[11.5px] font-semibold text-white shadow-xs"
                       >
                         <Check className="h-3.5 w-3.5" />
-                        Pay
+                        {t("labour.markPaid")}
                       </button>
                     </div>
                   ))}
@@ -732,14 +735,14 @@ export default function ExpensesPage() {
             {labourStats.byActivity.length > 0 && (
               <section className="rounded-card border border-line bg-white p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="section-title">Activity-wise Wages</h3>
+                  <h3 className="section-title">{t("labour.title")}</h3>
                   {selectedCategory && (
                     <button
                       type="button"
                       onClick={() => setSelectedCategory(null)}
                       className="text-[11.5px] font-semibold text-brand-700"
                     >
-                      Clear
+                      {t("common.all")}
                     </button>
                   )}
                 </div>
@@ -765,9 +768,12 @@ export default function ExpensesPage() {
             <section className="overflow-hidden rounded-card border border-line bg-white">
               <div className="flex items-center justify-between px-4 pb-2 pt-4">
                 <div>
-                  <h2 className="section-title">Labour History</h2>
+                  <h2 className="section-title">{t("labour.title")} {t("common.history")}</h2>
                   <p className="text-[11.5px] text-ink-muted">
-                    {filteredLabour.length} record{filteredLabour.length === 1 ? "" : "s"} · {range.label}
+                    {filteredLabour.length === 1
+                      ? t("expenses.recordsCount", { count: 1 })
+                      : t("expenses.recordsCountPlural", { count: filteredLabour.length })}{" "}
+                    · {range.label}
                   </p>
                 </div>
                 <button
@@ -776,16 +782,16 @@ export default function ExpensesPage() {
                   className="flex h-8 items-center gap-1 rounded-full bg-brand-50 px-3 text-[11.5px] font-semibold text-brand-700"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  Add
+                  {t("common.add")}
                 </button>
               </div>
               {filteredLabour.length === 0 ? (
                 <div className="px-4 pb-4">
                   <EmptyState
                     compact
-                    title="No labour recorded"
-                    message="Add field labour records, wages, and crew details."
-                    actionLabel="Add Labour"
+                    title={t("labour.noLabour")}
+                    message={t("labour.subtitle")}
+                    actionLabel={t("labour.addLabour")}
                     onAction={() => openForTab()}
                   />
                 </div>
@@ -799,7 +805,7 @@ export default function ExpensesPage() {
                             {p.workerName ? `${p.workerName} · ${p.activity}` : `${p.cropName} · ${p.activity}`}
                           </p>
                           <StatusPill
-                            label={p.status === "PAID" ? "Paid" : p.status === "PARTIAL" ? "Partial" : "Pending"}
+                            label={p.status === "PAID" ? t("labour.paidStatus") : p.status === "PARTIAL" ? t("income.partial") : t("income.pending")}
                             tone={p.status === "PAID" ? "positive" : p.status === "PARTIAL" ? "amber" : "neutral"}
                           />
                         </div>
@@ -807,11 +813,11 @@ export default function ExpensesPage() {
                           {p.cropName}{p.landName ? ` · ${p.landName}` : ""}
                         </p>
                         <p className="mt-0.5 text-[10.5px] text-ink-muted">
-                          {p.workers} worker{p.workers === 1 ? "" : "s"} × {p.days} day{p.days === 1 ? "" : "s"} · {formatDate(p.paymentDate)}
+                          {p.workers} × {p.days} · {formatDate(p.paymentDate)}
                         </p>
                         {p.status === "PARTIAL" && (
                           <p className="mt-0.5 text-[11px] text-amber font-medium">
-                            Paid {formatINR(p.paidPaise ?? 0)} · Outstanding: {formatINR(p.remainingPaise ?? 0)}
+                            {t("labour.paid")}: {formatINR(p.paidPaise ?? 0)} · {t("labour.unpaid")}: {formatINR(p.remainingPaise ?? 0)}
                           </p>
                         )}
                       </div>
@@ -823,7 +829,7 @@ export default function ExpensesPage() {
                             onClick={() => void markLabourPaid(p.id)}
                             className="mt-1 text-[11px] font-semibold text-brand-700 underline"
                           >
-                            Pay Remaining
+                            {t("labour.markPaid")}
                           </button>
                         )}
                       </div>
@@ -844,25 +850,27 @@ export default function ExpensesPage() {
                   <Tractor className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-[15px] font-semibold text-ink">Vehicle Expenses</h2>
+                  <h2 className="text-[15px] font-semibold text-ink">{getTabTitle("VEHICLE")}</h2>
                   <p className="mt-0.5 text-[11.5px] leading-4 text-ink-secondary">
-                    Tractor, car, bike fuel, servicing, repairs, and EMI.
+                    {getTabDesc("VEHICLE")}
                   </p>
                 </div>
               </div>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div>
-                  <p className="text-[11px] text-ink-muted">Total in {range.label.toLowerCase()}</p>
+                  <p className="text-[11px] text-ink-muted">{t("common.total")} · {range.label}</p>
                   <p className="mt-0.5 text-[26px] font-semibold tracking-[-0.03em] text-ink">
                     {formatINR(groupAmount)}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-[11px] text-ink-muted">
-                    {percentOf(groupAmount, breakdown.totalPaise)}% of spending
+                    {percentOf(groupAmount, breakdown.totalPaise)}%
                   </p>
                   <p className="mt-0.5 text-[12px] font-semibold text-ink-secondary">
-                    {counts.VEHICLE} record{counts.VEHICLE === 1 ? "" : "s"}
+                    {counts.VEHICLE === 1
+                      ? t("expenses.recordsCount", { count: 1 })
+                      : t("expenses.recordsCountPlural", { count: counts.VEHICLE })}
                   </p>
                 </div>
               </div>
@@ -880,19 +888,17 @@ export default function ExpensesPage() {
               <div className="rounded-2xl border border-line bg-white p-3">
                 <div className="flex items-center gap-1.5 text-brand-700">
                   <Fuel className="h-4 w-4" />
-                  <span className="text-[11px] font-semibold uppercase">Fuel</span>
+                  <span className="text-[11px] font-semibold uppercase">{t("inventory.fuel")}</span>
                 </div>
                 <p className="mt-1 text-[17px] font-semibold text-ink">{formatINR(vehicleStats.fuelPaise)}</p>
-                <p className="text-[10px] text-ink-muted">Petrol, Diesel, CNG</p>
               </div>
 
               <div className="rounded-2xl border border-line bg-white p-3">
                 <div className="flex items-center gap-1.5 text-sky">
                   <Wrench className="h-4 w-4" />
-                  <span className="text-[11px] font-semibold uppercase">Maintenance</span>
+                  <span className="text-[11px] font-semibold uppercase">{t("vehicles.services")}</span>
                 </div>
                 <p className="mt-1 text-[17px] font-semibold text-ink">{formatINR(vehicleStats.maintenancePaise)}</p>
-                <p className="text-[10px] text-ink-muted">Oil, service, repairs, tyres</p>
               </div>
 
               <div className="rounded-2xl border border-line bg-white p-3">
@@ -901,7 +907,6 @@ export default function ExpensesPage() {
                   <span className="text-[11px] font-semibold uppercase">Insurance</span>
                 </div>
                 <p className="mt-1 text-[17px] font-semibold text-ink">{formatINR(vehicleStats.insurancePaise)}</p>
-                <p className="text-[10px] text-ink-muted">Policy & renewals</p>
               </div>
 
               <div className="rounded-2xl border border-line bg-white p-3">
@@ -910,14 +915,13 @@ export default function ExpensesPage() {
                   <span className="text-[11px] font-semibold uppercase">EMI</span>
                 </div>
                 <p className="mt-1 text-[17px] font-semibold text-ink">{formatINR(vehicleStats.emiPaise)}</p>
-                <p className="text-[10px] text-ink-muted">Loan installments</p>
               </div>
             </section>
 
             {/* Vehicle Fleet Breakdown */}
             {vehicleStats.byVehicle.length > 0 && (
               <section className="rounded-card border border-line bg-white p-4">
-                <h3 className="section-title mb-2">Spending Per Vehicle</h3>
+                <h3 className="section-title mb-2">{t("vehicles.title")}</h3>
                 <div className="space-y-2">
                   {vehicleStats.byVehicle.map((v) => (
                     <div
@@ -939,8 +943,8 @@ export default function ExpensesPage() {
           <section className="rounded-card border border-line bg-white p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="section-title">Category Totals</h2>
-                <p className="text-[11.5px] text-ink-muted">Tap a category to filter records</p>
+                <h2 className="section-title">{t("reports.categoryWise")}</h2>
+                <p className="text-[11.5px] text-ink-muted">{range.label}</p>
               </div>
               {selectedCategory && (
                 <button
@@ -948,7 +952,7 @@ export default function ExpensesPage() {
                   onClick={() => setSelectedCategory(null)}
                   className="text-[11.5px] font-semibold text-brand-700"
                 >
-                  Clear filter
+                  {t("common.all")}
                 </button>
               )}
             </div>
@@ -958,9 +962,9 @@ export default function ExpensesPage() {
                 <EmptyState
                   compact
                   icon={<Receipt className="h-5 w-5" />}
-                  title="No spending recorded"
-                  message={`Add a ${GROUP_META[tab].label.toLowerCase()} expense and it will appear here by category.`}
-                  actionLabel="Add expense"
+                  title={t("expenses.nothingHere")}
+                  message={t("expenses.noRecordsHint")}
+                  actionLabel={t("expenses.addExpense")}
                   onAction={() => openForTab()}
                 />
               </div>
@@ -989,7 +993,7 @@ export default function ExpensesPage() {
                     className="input h-10 flex-1 text-[13px]"
                     value={newCategory}
                     onChange={(event) => setNewCategory(event.target.value)}
-                    placeholder="New category name"
+                    placeholder={t("expenses.newCategoryPlaceholder")}
                     autoFocus
                   />
                   <button
@@ -997,7 +1001,7 @@ export default function ExpensesPage() {
                     className="btn-primary h-10 px-3 text-[12px]"
                     onClick={addCategory}
                   >
-                    Add
+                    {t("common.add")}
                   </button>
                   <button
                     type="button"
@@ -1007,7 +1011,7 @@ export default function ExpensesPage() {
                       setShowNewCategory(false);
                     }}
                   >
-                    Cancel
+                    {t("common.cancel")}
                   </button>
                 </div>
               ) : (
@@ -1016,7 +1020,7 @@ export default function ExpensesPage() {
                   onClick={() => setShowNewCategory(true)}
                   className="text-[12px] font-semibold text-brand-700"
                 >
-                  + Add a custom {GROUP_META[tab].label.toLowerCase()} category
+                  {t("expenses.addCustomCategory", { group: getTabLabel(tab) })}
                 </button>
               )}
             </div>
@@ -1029,10 +1033,13 @@ export default function ExpensesPage() {
             <div className="flex items-center justify-between px-4 pb-2 pt-4">
               <div>
                 <h2 className="section-title">
-                  {selectedCategory ? `${selectedCategory} Records` : `${GROUP_META[tab].label} Expense History`}
+                  {selectedCategory ? t("expenses.categoryRecords", { category: selectedCategory }) : t("expenses.expenseHistory", { group: getTabLabel(tab) })}
                 </h2>
                 <p className="text-[11.5px] text-ink-muted">
-                  {filteredTransactions.length} record{filteredTransactions.length === 1 ? "" : "s"} · {range.label}
+                  {filteredTransactions.length === 1
+                    ? t("expenses.recordsCount", { count: 1 })
+                    : t("expenses.recordsCountPlural", { count: filteredTransactions.length })}{" "}
+                  · {range.label}
                 </p>
               </div>
               <button
@@ -1041,16 +1048,16 @@ export default function ExpensesPage() {
                 className="flex h-8 items-center gap-1 rounded-full bg-brand-50 px-3 text-[11.5px] font-semibold text-brand-700"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Add
+                {t("common.add")}
               </button>
             </div>
             {filteredTransactions.length === 0 ? (
               <div className="px-4 pb-4">
                 <EmptyState
                   compact
-                  title="Nothing here yet"
-                  message="No records match this filter. Try another period or add an expense."
-                  actionLabel="Add expense"
+                  title={t("expenses.nothingHere")}
+                  message={t("expenses.noRecordsHint")}
+                  actionLabel={t("expenses.addExpense")}
                   onAction={() => openForTab()}
                 />
               </div>
@@ -1083,6 +1090,7 @@ function CategoryRow({
   active: boolean;
   onClick: () => void;
 }) {
+  const { t } = useApp();
   return (
     <button type="button" onClick={onClick} className="block w-full text-left">
       <div className="mb-1 flex items-center justify-between gap-3">
@@ -1098,7 +1106,9 @@ function CategoryRow({
       </div>
       <ProgressBar value={percentOf(row.amountPaise, total)} tone={active ? "brand" : "sky"} />
       <p className="mt-0.5 text-[10px] text-ink-muted">
-        {row.count} record{row.count === 1 ? "" : "s"}
+        {row.count === 1
+          ? t("expenses.recordsCount", { count: 1 })
+          : t("expenses.recordsCountPlural", { count: row.count })}
       </p>
     </button>
   );

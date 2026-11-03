@@ -43,7 +43,7 @@ import type { InventoryItem } from "@/lib/types";
 type InventoryTab = "PRODUCTS" | "PURCHASES" | "USAGE" | "AUDIT" | "REPORTS";
 
 export default function InventoryPage() {
-  const { inventory, crops, lands } = useApp();
+  const { inventory, crops, lands, t } = useApp();
 
   const [activeTab, setActiveTab] = useState<InventoryTab>("PRODUCTS");
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
@@ -195,8 +195,8 @@ export default function InventoryPage() {
   return (
     <div className="min-h-[100dvh] bg-canvas pb-20">
       <PageHeader
-        title="Inventory"
-        subtitle="Seeds, fertilizers & farm supplies"
+        title={t("inventory.title")}
+        subtitle={t("inventory.subtitle")}
         backHref="/more"
         right={
           <div className="flex items-center gap-2">
@@ -207,7 +207,7 @@ export default function InventoryPage() {
               className="flex h-9 items-center gap-1 rounded-full border border-line bg-white px-3 text-[12px] font-semibold text-ink shadow-sm disabled:opacity-40"
             >
               <ShoppingCart className="h-3.5 w-3.5 text-brand-600" />
-              <span>Buy</span>
+              <span>{t("inventory.recordPurchase")}</span>
             </button>
             <button
               type="button"
@@ -215,7 +215,7 @@ export default function InventoryPage() {
               className="flex h-9 items-center gap-1 rounded-full bg-brand-600 px-3 text-[12px] font-semibold text-white shadow-sm"
             >
               <Plus className="h-4 w-4" />
-              <span>Product</span>
+              <span>{t("common.add")}</span>
             </button>
           </div>
         }
@@ -230,8 +230,8 @@ export default function InventoryPage() {
                 <Package className="h-4 w-4" />
               </span>
               <div>
-                <h2 className="text-[14px] font-bold text-ink">Stock on Hand</h2>
-                <p className="text-[11px] text-ink-muted">Valued at actual purchase cost</p>
+                <h2 className="text-[14px] font-bold text-ink">{t("inventory.stockOnHand")}</h2>
+                <p className="text-[11px] text-ink-muted">{t("inventory.valuedAtCost")}</p>
               </div>
             </div>
             <div className="text-right">
@@ -239,28 +239,28 @@ export default function InventoryPage() {
                 {formatINR(stats.totalStockValuePaise)}
               </p>
               <p className="text-[10.5px] font-medium text-ink-muted">
-                {stats.totalActiveProducts} active products
+                {stats.totalActiveProducts} {t("inventory.activeProducts")}
               </p>
             </div>
           </div>
 
           <div className="mt-3 grid grid-cols-3 gap-2">
             <StatCard
-              label="Low Stock"
+              label={t("inventory.lowStock")}
               value={String(stats.lowStockCount)}
-              hint={stats.lowStockCount > 0 ? "Restock needed" : "Sufficient"}
+              hint={stats.lowStockCount > 0 ? t("inventory.restockNeeded") : t("inventory.sufficient")}
               tone={stats.lowStockCount > 0 ? "amber" : "positive"}
             />
             <StatCard
-              label="Out of Stock"
+              label={t("inventory.outOfStock")}
               value={String(stats.outOfStockCount)}
-              hint={stats.outOfStockCount > 0 ? "Zero balance" : "None"}
+              hint={stats.outOfStockCount > 0 ? t("inventory.zeroBalance") : t("inventory.sufficient")}
               tone={stats.outOfStockCount > 0 ? "negative" : "positive"}
             />
             <StatCard
-              label="Expiring Soon"
+              label={t("reminders.upcoming")}
               value={String(stats.expiringCount)}
-              hint={stats.expiringCount > 0 ? "Within 30 days" : "Fresh"}
+              hint={stats.expiringCount > 0 ? "Within 30 days" : t("inventory.fresh")}
               tone={stats.expiringCount > 0 ? "amber" : "neutral"}
             />
           </div>
@@ -269,7 +269,7 @@ export default function InventoryPage() {
             <div className="mt-2.5 flex items-center justify-between rounded-xl bg-canvas px-3 py-2 text-[11.5px]">
               <span className="text-ink-secondary flex items-center gap-1.5">
                 <Store className="h-3.5 w-3.5 text-amber" />
-                Unpaid Dealer Balance:
+                {t("inventory.unpaidDealerBalance")}:
               </span>
               <span className="font-bold text-amber">
                 {formatINR(stats.totalPendingSupplierPaise)}
@@ -295,7 +295,7 @@ export default function InventoryPage() {
                   onClick={() => openPurchase()}
                   className="shrink-0 font-bold text-brand-700 hover:underline"
                 >
-                  Restock
+                  {t("inventory.restock")}
                 </button>
               </div>
             )}
@@ -325,7 +325,7 @@ export default function InventoryPage() {
             }`}
           >
             <Package className="h-4 w-4" />
-            <span>Products ({filteredItems.length})</span>
+            <span>{t("inventory.products")} ({filteredItems.length})</span>
           </button>
           <button
             type="button"
@@ -337,7 +337,7 @@ export default function InventoryPage() {
             }`}
           >
             <ShoppingCart className="h-4 w-4" />
-            <span>Purchases ({allPurchases.length})</span>
+            <span>{t("inventory.purchases")} ({allPurchases.length})</span>
           </button>
           <button
             type="button"
@@ -349,7 +349,7 @@ export default function InventoryPage() {
             }`}
           >
             <Sprout className="h-4 w-4" />
-            <span>Usage ({allUsages.length})</span>
+            <span>{t("inventory.usage")} ({allUsages.length})</span>
           </button>
           <button
             type="button"
@@ -361,7 +361,7 @@ export default function InventoryPage() {
             }`}
           >
             <History className="h-4 w-4" />
-            <span>Audit ({allAdjustments.length})</span>
+            <span>{t("inventory.audit")} ({allAdjustments.length})</span>
           </button>
           <button
             type="button"

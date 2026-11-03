@@ -29,7 +29,7 @@ export default function LabourSheet({
   labour,
   defaultCropId,
 }: LabourSheetProps) {
-  const { crops, lands, saveLabourPayment, notify } = useApp();
+  const { crops, lands, saveLabourPayment, notify, t } = useApp();
   const [cropId, setCropId] = useState("");
   const [landId, setLandId] = useState("");
   const [workerName, setWorkerName] = useState("");
@@ -158,12 +158,12 @@ export default function LabourSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title={labour ? "Edit Labour Payment" : "Add Labour Payment"}
+      title={labour ? t("labour.editLabour") : t("labour.addLabour")}
       subtitle="Total Cost = Workers × Daily Rate × Number of Days"
       footer={
         <button type="button" className="btn-primary w-full" onClick={save} disabled={busy}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          {busy ? "Saving…" : labour ? "Save changes" : "Save Labour Payment"}
+          {busy ? "…" : labour ? t("form.saveChanges") : t("common.save")}
         </button>
       }
       size="lg"

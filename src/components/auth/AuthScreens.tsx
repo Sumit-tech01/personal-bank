@@ -359,6 +359,7 @@ export function LockScreen() {
     resetPinWithRecovery,
     authLockUntil,
     notify,
+    t,
   } = useApp();
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -515,9 +516,9 @@ export function LockScreen() {
 
   return (
     <AuthShell
-      eyebrow="Welcome back"
+      eyebrow={t("auth.unlockTitle")}
       title={`Hello, ${account.name.split(" ")[0]}.`}
-      subtitle="Enter your PIN to open your family and farm records."
+      subtitle={t("auth.enterPin")}
     >
       <div className="flex flex-col items-center">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-100 text-[26px] font-semibold text-brand-800">
@@ -557,7 +558,7 @@ export function LockScreen() {
               }`}
               aria-label={key === "back" ? "Delete last digit" : key === "clear" ? "Clear PIN" : key}
             >
-              {key === "back" ? "Delete" : key === "clear" ? "Clear" : key}
+              {key === "back" ? "⌫" : key === "clear" ? "C" : key}
             </button>
           ))}
         </div>
@@ -570,7 +571,7 @@ export function LockScreen() {
             setError("");
           }}
         >
-          Forgot your PIN? Use recovery code
+          {t("auth.forgotPin")}
         </button>
 
         {busy && !locked && (

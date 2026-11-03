@@ -14,7 +14,7 @@ interface FamilySheetProps {
 }
 
 export default function FamilySheet({ open, onClose, member }: FamilySheetProps) {
-  const { saveFamilyMember, notify } = useApp();
+  const { saveFamilyMember, notify, t } = useApp();
   const [name, setName] = useState("");
   const [relation, setRelation] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
@@ -52,7 +52,7 @@ export default function FamilySheet({ open, onClose, member }: FamilySheetProps)
         },
         member?.id
       );
-      notify(member ? "Family member updated." : "Family member added.");
+      notify(member ? t("common.saved") : t("common.saved"));
       onClose();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save this person.");
@@ -65,19 +65,19 @@ export default function FamilySheet({ open, onClose, member }: FamilySheetProps)
     <Sheet
       open={open}
       onClose={onClose}
-      title={member ? "Edit family member" : "Add a family member"}
+      title={member ? t("family.editMember") : t("family.addMember")}
       subtitle="Keep names, birthdays and phone numbers together."
       footer={
         <button type="button" className="btn-primary w-full" onClick={save} disabled={busy}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          {busy ? "Saving…" : member ? "Save changes" : "Save family member"}
+          {busy ? "…" : member ? t("form.saveChanges") : t("common.save")}
         </button>
       }
     >
       <div className="space-y-4">
         <div>
           <label className="label">
-            Name <span className="text-negative">*</span>
+            {t("common.name")} <span className="text-negative">*</span>
           </label>
           <input
             className="input"
@@ -89,7 +89,7 @@ export default function FamilySheet({ open, onClose, member }: FamilySheetProps)
         </div>
 
         <div>
-          <label className="label">Relation</label>
+          <label className="label">{t("family.relation")}</label>
           <input
             className="input"
             value={relation}
@@ -98,11 +98,11 @@ export default function FamilySheet({ open, onClose, member }: FamilySheetProps)
           />
         </div>
 
-        <SimpleDatePicker label="Date of birth" value={dateOfBirth} onChange={setDateOfBirth} />
+        <SimpleDatePicker label={t("common.date")} value={dateOfBirth} onChange={setDateOfBirth} />
 
         <div>
           <label className="label">
-            Phone <span className="font-normal text-ink-muted">(optional)</span>
+            {t("family.phone")} <span className="font-normal text-ink-muted">(optional)</span>
           </label>
           <input
             type="tel"
@@ -115,7 +115,7 @@ export default function FamilySheet({ open, onClose, member }: FamilySheetProps)
 
         <div>
           <label className="label">
-            Notes <span className="font-normal text-ink-muted">(optional)</span>
+            {t("common.notes")} <span className="font-normal text-ink-muted">(optional)</span>
           </label>
           <textarea
             className="textarea"

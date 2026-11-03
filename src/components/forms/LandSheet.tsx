@@ -14,7 +14,7 @@ interface LandSheetProps {
 }
 
 export default function LandSheet({ open, onClose, land }: LandSheetProps) {
-  const { saveLand, deleteLand, notify } = useApp();
+  const { saveLand, deleteLand, notify, t } = useApp();
   const [name, setName] = useState("");
   const [surveyNumber, setSurveyNumber] = useState("");
   const [totalArea, setTotalArea] = useState("");
@@ -117,7 +117,7 @@ export default function LandSheet({ open, onClose, land }: LandSheetProps) {
     <Sheet
       open={open}
       onClose={onClose}
-      title={land ? "Edit Land Parcel" : "Add Land Parcel"}
+      title={land ? "Edit Land Parcel" : t("farm.addLand")}
       subtitle="Register a farm plot to assign crops and track acreage."
       footer={
         <div className="flex gap-2.5">
@@ -134,7 +134,7 @@ export default function LandSheet({ open, onClose, land }: LandSheetProps) {
           )}
           <button type="button" className="btn-primary flex-1" onClick={save} disabled={busy}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            {busy ? "Saving…" : land ? "Save changes" : "Save plot"}
+            {busy ? "…" : land ? t("form.saveChanges") : t("common.save")}
           </button>
         </div>
       }

@@ -5,7 +5,6 @@ import {
   ArrowDownLeft,
   ChevronRight,
   Clock,
-  Filter,
   Milk,
   Plus,
   Search,
@@ -66,6 +65,7 @@ type UnifiedIncomeItem =
       title: string;
       subtitle?: string;
       buyerName?: string;
+      marketName?: string;
       grossAmountPaise: number;
       netAmountPaise: number;
       receivedPaise: number;
@@ -76,7 +76,7 @@ type UnifiedIncomeItem =
     };
 
 export default function IncomePage() {
-  const { transactions, cropSales, deleteTransaction, deleteCropSale, notify } = useApp();
+  const { transactions, cropSales, deleteTransaction, deleteCropSale, notify, t, formatDate } = useApp();
   const confirm = useConfirm();
 
   const [range, setRange] = useState<DateRange>(() => rangeForPreset("THIS_MONTH"));
@@ -103,7 +103,6 @@ export default function IncomePage() {
   const months = useMemo(() => lastNMonths(6), []);
   const monthlyTrends = useMemo(() => {
     return months.map((m) => {
-      // Received from transactions
       const txSum = sumPaise(
         transactions
           .filter(
@@ -150,42 +149,24 @@ export default function IncomePage() {
         subtitle: `${sale.quantitySold} ${sale.unit} @ ₹${Math.round(sale.ratePerUnitPaise / 100)}/${sale.unit}`,
         buyerName: sale.buyerName,
         marketName: sale.marketName,
-        grossAmountPaise: sale.grossAmountPaise ?? (sale.quantitySold * sale.ratePerUnitPaise),
+        grossAmountPaise: sale.totalAmountPaise,
         netAmountPaise: netAmount,
         receivedPaise: sale.receivedPaise,
-        pendingPaise: sale.pendingPaise,
+        pendingPaise: Math.max(0, netAmount - sale.receivedPaise),
         status,
         paymentMethod: sale.paymentMethod,
         raw: sale,
       });
     }
 
-    // 2. Transactions of kind INCOME that are not linked to crop sales
+    // 2. Transaction Incomes in period
     for (const tx of transactions) {
       if (tx.deletedAt || tx.kind !== "INCOME") continue;
       if (!inRange(tx.date, range)) continue;
-      if (tx.notes?.includes("[cropsale:")) continue; // prevent duplicate counting
 
-      const isFarm = tx.group === "FARM" || isFarmIncomeCategory(tx.category);
-      const isPending = isPendingIncome(tx);
-      const hasPartialPending = !!(tx.pendingAmountPaise && tx.pendingAmountPaise > 0);
-
-      const status: "RECEIVED" | "PARTIAL" | "PENDING" = isPending
-        ? "PENDING"
-        : hasPartialPending
-        ? "PARTIAL"
-        : "RECEIVED";
-
-      const receivedPaise = isPending ? 0 : tx.amountPaise;
-      const pendingPaise = isPending
-        ? tx.amountPaise
-        : tx.pendingAmountPaise ?? 0;
-      const netAmountPaise = receivedPaise + pendingPaise;
-
-      let subtitle = tx.description;
-      if (tx.quantity && tx.ratePaise) {
-        subtitle = `${tx.quantity} ${tx.unit || ""} @ ₹${Math.round(tx.ratePaise / 100)}`;
-      }
+      const isFarm = isFarmIncomeCategory(tx.category) || tx.group === "FARM" || !!tx.cropId;
+      const status: "RECEIVED" | "PARTIAL" | "PENDING" =
+        tx.incomeStatus === "PENDING" ? "PENDING" : "RECEIVED";
 
       list.push({
         type: "TRANSACTION",
@@ -194,73 +175,84 @@ export default function IncomePage() {
         category: tx.category,
         source: isFarm ? "FARM" : "HOME",
         title: tx.description || tx.category,
-        subtitle,
-        buyerName: tx.buyerName,
-        grossAmountPaise: tx.grossAmountPaise ?? netAmountPaise,
-        netAmountPaise,
-        receivedPaise,
-        pendingPaise,
+        subtitle: tx.cropName ? `Crop: ${tx.cropName}` : tx.vehicleName ? `Vehicle: ${tx.vehicleName}` : undefined,
+        buyerName: tx.notes,
+        grossAmountPaise: tx.amountPaise,
+        netAmountPaise: tx.amountPaise,
+        receivedPaise: status === "RECEIVED" ? tx.amountPaise : 0,
+        pendingPaise: status === "PENDING" ? tx.amountPaise : 0,
         status,
         paymentMethod: tx.paymentMethod,
         raw: tx,
       });
     }
 
-    // Sort by date descending
+    // Sort newest first
     return list.sort((a, b) => b.date.localeCompare(a.date));
   }, [cropSales, transactions, range]);
 
   // Filtered unified list
   const filteredItems = useMemo(() => {
     return unifiedItems.filter((item) => {
-      // Search
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchTitle = item.title.toLowerCase().includes(query);
-        const matchCategory = item.category.toLowerCase().includes(query);
-        const matchBuyer = item.buyerName?.toLowerCase().includes(query);
-        const matchMarket = item.type === "CROPSALE" && item.marketName?.toLowerCase().includes(query);
-        const matchSub = item.subtitle?.toLowerCase().includes(query);
-        if (!matchTitle && !matchCategory && !matchBuyer && !matchMarket && !matchSub) {
-          return false;
-        }
-      }
+      // Source filter
+      if (categoryFilter !== "ALL" && item.source !== categoryFilter) return false;
 
-      // Category Filter
-      if (categoryFilter === "FARM" && item.source !== "FARM") return false;
-      if (categoryFilter === "HOME" && item.source !== "HOME") return false;
-      if (categoryFilter !== "ALL" && categoryFilter !== "FARM" && categoryFilter !== "HOME") {
-        if (item.category !== categoryFilter) return false;
-      }
-
-      // Status Filter
+      // Status filter
       if (statusFilter === "RECEIVED" && item.status !== "RECEIVED") return false;
       if (statusFilter === "PENDING" && item.status === "RECEIVED") return false;
 
+      // Query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const inTitle = item.title.toLowerCase().includes(q);
+        const inCategory = item.category.toLowerCase().includes(q);
+        const inBuyer = (item.buyerName || "").toLowerCase().includes(q);
+        const inMarket = (item.marketName || "").toLowerCase().includes(q);
+        if (!inTitle && !inCategory && !inBuyer && !inMarket) return false;
+      }
+
       return true;
     });
-  }, [unifiedItems, searchQuery, categoryFilter, statusFilter]);
+  }, [unifiedItems, categoryFilter, statusFilter, searchQuery]);
 
-  // Actions
-  const handleItemClick = (item: UnifiedIncomeItem) => {
+  const openCropSale = () => {
+    setAddMenuOpen(false);
+    setSelectedCropSale(null);
+    setCropSaleSheetOpen(true);
+  };
+
+  const openIncomeType = (type: IncomeFormType) => {
+    setAddMenuOpen(false);
+    setSelectedTransaction(null);
+    setIncomeSheetType(type);
+    setIncomeSheetOpen(true);
+  };
+
+  const handleEditItem = (item: UnifiedIncomeItem) => {
     if (item.type === "CROPSALE") {
       setSelectedCropSale(item.raw);
       setCropSaleSheetOpen(true);
     } else {
       setSelectedTransaction(item.raw);
+      const cat = item.raw.category;
+      if (cat.includes("Milk")) setIncomeSheetType("MILK");
+      else if (cat.includes("Tractor")) setIncomeSheetType("TRACTOR_RENTAL");
+      else if (cat.includes("Machinery")) setIncomeSheetType("MACHINERY_RENTAL");
+      else if (cat.includes("Salary") || cat.includes("Business")) setIncomeSheetType("HOUSEHOLD");
+      else setIncomeSheetType("AGRI_PRODUCTS");
       setIncomeSheetOpen(true);
     }
   };
 
-  const handleDeleteItem = async (e: React.MouseEvent, item: UnifiedIncomeItem) => {
-    e.stopPropagation();
-    const confirmed = await confirm({
-      title: `Delete ${item.category}?`,
-      message: "Are you sure you want to delete this income record? This action cannot be undone.",
-      confirmLabel: "Delete",
+  const handleDeleteItem = async (item: UnifiedIncomeItem) => {
+    const okay = await confirm({
+      title: t("dialog.confirmDelete"),
+      message: t("dialog.deleteWarning"),
       danger: true,
+      confirmLabel: t("dialog.confirm"),
+      cancelLabel: t("dialog.cancel"),
     });
-    if (!confirmed) return;
+    if (!okay) return;
 
     if (item.type === "CROPSALE") {
       await deleteCropSale(item.id);
@@ -271,25 +263,11 @@ export default function IncomePage() {
     }
   };
 
-  const openIncomeType = (type: IncomeFormType) => {
-    setAddMenuOpen(false);
-    setSelectedTransaction(null);
-    setIncomeSheetType(type);
-    setIncomeSheetOpen(true);
-  };
-
-  const openCropSale = () => {
-    setAddMenuOpen(false);
-    setSelectedCropSale(null);
-    setCropSaleSheetOpen(true);
-  };
-
   return (
-    <div className="min-h-[100dvh] bg-canvas pb-24">
+    <div className="min-h-[100dvh] bg-canvas">
       <PageHeader
-        title="Income & Sales"
-        subtitle="Manage crop sales, farm income, household earnings & receivables"
-        backHref="/"
+        title={t("income.title")}
+        subtitle={t("income.subtitle")}
         right={
           <button
             type="button"
@@ -297,7 +275,7 @@ export default function IncomePage() {
             className="flex h-10 items-center gap-1.5 rounded-full bg-brand-600 px-3.5 text-[12px] font-semibold text-white shadow-sm transition active:scale-95"
           >
             <Plus className="h-4 w-4" />
-            Add Income
+            {t("income.addIncome")}
           </button>
         }
       />
@@ -311,13 +289,13 @@ export default function IncomePage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                Total Income ({range.label})
+                {t("income.title")} ({range.label})
               </p>
               <p className="mt-1 font-mono text-[32px] font-semibold tracking-tight text-ink">
                 {formatINR(overview.totalIncomePaise)}
               </p>
               <p className="mt-0.5 text-[11.5px] text-ink-secondary">
-                {overview.categories.reduce((acc, c) => acc + c.count, 0)} total records recorded
+                {overview.categories.reduce((acc, c) => acc + c.count, 0)} {t("common.entries", { count: overview.categories.reduce((acc, c) => acc + c.count, 0) })}
               </p>
             </div>
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-positive-light text-positive">
@@ -330,26 +308,26 @@ export default function IncomePage() {
             <div className="rounded-2xl border border-positive/30 bg-positive-light/40 p-3">
               <div className="flex items-center gap-1.5 text-positive">
                 <ArrowDownLeft className="h-4 w-4" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider">Received Cash</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider">{t("income.totalReceived")}</span>
               </div>
               <p className="mt-1 font-mono text-[18px] font-semibold text-positive">
                 {formatINR(overview.receivedPaise)}
               </p>
               <p className="mt-0.5 text-[10.5px] text-ink-muted">
-                {percentOf(overview.receivedPaise, overview.totalIncomePaise)}% collected into balance
+                {percentOf(overview.receivedPaise, overview.totalIncomePaise)}%
               </p>
             </div>
 
             <div className="rounded-2xl border border-amber/30 bg-amber-light/40 p-3">
               <div className="flex items-center gap-1.5 text-amber">
                 <Clock className="h-4 w-4" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider">Pending Receivables</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider">{t("income.totalPending")}</span>
               </div>
               <p className="mt-1 font-mono text-[18px] font-semibold text-amber">
                 {formatINR(overview.pendingPaise)}
               </p>
               <p className="mt-0.5 text-[10.5px] text-ink-muted">
-                {percentOf(overview.pendingPaise, overview.totalIncomePaise)}% owed by buyers
+                {percentOf(overview.pendingPaise, overview.totalIncomePaise)}%
               </p>
             </div>
           </div>
@@ -359,10 +337,10 @@ export default function IncomePage() {
             <div className="mt-3.5 space-y-1.5 border-t border-line/60 pt-3">
               <div className="flex items-center justify-between text-[11.5px]">
                 <span className="font-medium text-ink-secondary">
-                  Farm Income: <strong className="text-brand-700">{formatINR(overview.farmTotalPaise)}</strong>
+                  {t("income.farming")}: <strong className="text-brand-700">{formatINR(overview.farmTotalPaise)}</strong>
                 </span>
                 <span className="font-medium text-ink-secondary">
-                  Household: <strong className="text-sky-700">{formatINR(overview.householdTotalPaise)}</strong>
+                  {t("income.household")}: <strong className="text-sky-700">{formatINR(overview.householdTotalPaise)}</strong>
                 </span>
               </div>
               <ProgressBar
@@ -373,16 +351,13 @@ export default function IncomePage() {
           )}
         </section>
 
-        {/* Category Breakdown (Farm Income & Household Income) */}
+        {/* Category Breakdown */}
         <section className="rounded-card border border-line bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="section-title">Income by Category</h2>
-              <p className="text-[11.5px] text-ink-muted">Earned across your farm and household</p>
+              <h2 className="section-title">{t("income.incomeSources")}</h2>
+              <p className="text-[11.5px] text-ink-muted">{range.label}</p>
             </div>
-            <span className="text-[12px] font-semibold text-brand-700">
-              {overview.categories.length} Categories
-            </span>
           </div>
 
           {overview.categories.length === 0 ? (
@@ -390,9 +365,9 @@ export default function IncomePage() {
               <EmptyState
                 compact
                 icon={<ArrowDownLeft className="h-5 w-5" />}
-                title="No income recorded yet"
-                message="Record your crop harvests, dairy milk sales, tractor rental, or salary."
-                actionLabel="Record Income"
+                title={t("income.noIncome")}
+                message={t("income.subtitle")}
+                actionLabel={t("income.addIncome")}
                 onAction={() => setAddMenuOpen(true)}
               />
             </div>
@@ -416,7 +391,7 @@ export default function IncomePage() {
                       {formatINR(c.totalPaise)}
                       {c.pendingPaise > 0 && (
                         <span className="ml-1.5 text-[10px] font-normal text-amber">
-                          ({formatINR(c.pendingPaise)} pend.)
+                          ({formatINR(c.pendingPaise)} {t("common.pending")})
                         </span>
                       )}
                     </span>
@@ -435,8 +410,7 @@ export default function IncomePage() {
         <section className="rounded-card border border-line bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="section-title">Monthly Income History</h2>
-              <p className="text-[11.5px] text-ink-muted">Received cash month by month</p>
+              <h2 className="section-title">{t("income.monthlyTrend")}</h2>
             </div>
           </div>
           <div className="mt-3.5 space-y-2.5">
@@ -464,9 +438,9 @@ export default function IncomePage() {
           <div className="p-4 border-b border-line/70 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="section-title">Income History</h2>
+                <h2 className="section-title">{t("income.title")} {t("common.history")}</h2>
                 <p className="text-[11.5px] text-ink-muted">
-                  Showing {filteredItems.length} of {unifiedItems.length} records
+                  {filteredItems.length} {t("common.entries", { count: filteredItems.length })}
                 </p>
               </div>
             </div>
@@ -478,7 +452,7 @@ export default function IncomePage() {
                 className="input h-10 pl-9 text-[13px]"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search buyer, crop, product, category..."
+                placeholder={t("common.search")}
               />
               {searchQuery && (
                 <button
@@ -502,7 +476,7 @@ export default function IncomePage() {
                     : "bg-canvas text-ink-secondary hover:text-ink"
                 }`}
               >
-                All Sources
+                {t("income.allSources")}
               </button>
               <button
                 type="button"
@@ -513,7 +487,7 @@ export default function IncomePage() {
                     : "bg-canvas text-ink-secondary hover:text-ink"
                 }`}
               >
-                Farm Only
+                {t("expenses.farmGroup")}
               </button>
               <button
                 type="button"
@@ -524,7 +498,7 @@ export default function IncomePage() {
                     : "bg-canvas text-ink-secondary hover:text-ink"
                 }`}
               >
-                Household Only
+                {t("expenses.homeGroup")}
               </button>
 
               <span className="mx-1 h-3 w-px bg-line" />
@@ -538,7 +512,7 @@ export default function IncomePage() {
                     : "bg-canvas text-ink-secondary hover:text-ink"
                 }`}
               >
-                All Status
+                {t("income.allStatus")}
               </button>
               <button
                 type="button"
@@ -549,7 +523,7 @@ export default function IncomePage() {
                     : "bg-canvas text-ink-secondary hover:text-ink"
                 }`}
               >
-                Received
+                {t("income.received")}
               </button>
               <button
                 type="button"
@@ -560,92 +534,84 @@ export default function IncomePage() {
                     : "bg-canvas text-ink-secondary hover:text-ink"
                 }`}
               >
-                Pending
+                {t("income.pending")}
               </button>
             </div>
           </div>
 
-          {/* List of Items */}
           {filteredItems.length === 0 ? (
             <div className="p-6">
               <EmptyState
                 compact
-                title="No income records match"
-                message="Try clearing your search query or choosing another period preset."
+                title={t("income.noIncome")}
+                message={t("income.subtitle")}
+                actionLabel={t("income.addIncome")}
+                onAction={() => setAddMenuOpen(true)}
               />
             </div>
           ) : (
-            <div className="divide-y divide-line/60">
+            <div className="divide-y divide-line/70">
               {filteredItems.map((item) => (
                 <div
                   key={`${item.type}-${item.id}`}
-                  onClick={() => handleItemClick(item)}
-                  className="flex items-center justify-between gap-3 p-3.5 hover:bg-canvas/50 transition cursor-pointer active:bg-canvas"
+                  className="flex items-start justify-between p-3.5 transition hover:bg-canvas/50"
                 >
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] font-medium text-ink-muted">{item.date}</span>
-                      <span
-                        className={`rounded-full px-1.5 py-0.2 text-[9.5px] font-semibold uppercase ${
-                          item.source === "FARM"
-                            ? "bg-brand-50 text-brand-700"
-                            : "bg-sky-50 text-sky-700"
-                        }`}
-                      >
-                        {item.category}
+                  <div
+                    className="min-w-0 flex-1 cursor-pointer"
+                    onClick={() => handleEditItem(item)}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-[13.5px] font-semibold text-ink">
+                        {item.title}
                       </span>
-                      {item.status === "RECEIVED" && (
-                        <span className="rounded-full bg-positive-light px-1.5 py-0.2 text-[9.5px] font-semibold text-positive">
-                          Paid
-                        </span>
-                      )}
-                      {item.status === "PARTIAL" && (
-                        <span className="rounded-full bg-amber-light px-1.5 py-0.2 text-[9.5px] font-semibold text-amber">
-                          Partial · {formatINR(item.pendingPaise)} pending
-                        </span>
-                      )}
-                      {item.status === "PENDING" && (
-                        <span className="rounded-full bg-amber-light px-1.5 py-0.2 text-[9.5px] font-semibold text-amber">
-                          Pending Receivable
-                        </span>
-                      )}
+                      <StatusPill
+                        label={
+                          item.status === "RECEIVED"
+                            ? t("income.received")
+                            : item.status === "PARTIAL"
+                            ? t("income.partial")
+                            : t("income.pending")
+                        }
+                        tone={
+                          item.status === "RECEIVED"
+                            ? "positive"
+                            : item.status === "PARTIAL"
+                            ? "amber"
+                            : "neutral"
+                        }
+                      />
                     </div>
 
-                    <p className="truncate text-[13px] font-semibold text-ink">{item.title}</p>
+                    <p className="mt-0.5 truncate text-[11.5px] text-ink-secondary">
+                      {item.category}
+                      {item.subtitle ? ` · ${item.subtitle}` : ""}
+                    </p>
 
-                    <div className="flex items-center gap-2 text-[11px] text-ink-secondary">
-                      {item.buyerName && <span>To: {item.buyerName}</span>}
-                      {item.subtitle && item.subtitle !== item.title && (
-                        <span>· {item.subtitle}</span>
-                      )}
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[10.5px] text-ink-muted">
+                      <span>{formatDate(item.date)}</span>
+                      {item.buyerName && <span>· Buyer: {item.buyerName}</span>}
+                      {item.marketName && <span>· Mandi: {item.marketName}</span>}
+                      <span>· {item.paymentMethod}</span>
                     </div>
+
+                    {item.pendingPaise > 0 && (
+                      <p className="mt-1 text-[11px] font-medium text-amber">
+                        {t("income.received")}: {formatINR(item.receivedPaise)} · {t("income.pending")}: {formatINR(item.pendingPaise)}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Amounts & Actions */}
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="text-right">
-                      <span className="block font-mono text-[14px] font-semibold text-ink">
-                        {formatINR(item.receivedPaise > 0 ? item.receivedPaise : item.netAmountPaise)}
-                      </span>
-                      {item.status === "PARTIAL" && (
-                        <span className="block text-[10px] text-amber font-medium">
-                          + {formatINR(item.pendingPaise)} due
-                        </span>
-                      )}
-                      {item.status === "PENDING" && (
-                        <span className="block text-[10px] text-amber font-medium">
-                          Pending
-                        </span>
-                      )}
-                    </div>
-
+                  <div className="ml-3 flex shrink-0 flex-col items-end gap-1.5">
+                    <span className="font-mono text-[14.5px] font-bold text-positive">
+                      +{formatINR(item.netAmountPaise)}
+                    </span>
                     <button
                       type="button"
-                      onClick={(e) => handleDeleteItem(e, item)}
-                      className="p-1.5 text-ink-muted hover:text-negative transition rounded-lg hover:bg-negative-light/50"
-                      title="Delete record"
+                      onClick={() => void handleDeleteItem(item)}
+                      className="rounded-lg p-1 text-ink-muted hover:bg-canvas hover:text-negative"
+                      title={t("common.delete")}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
@@ -653,25 +619,14 @@ export default function IncomePage() {
             </div>
           )}
         </section>
-
-        {/* Clear Financial Rules Banner */}
-        <div className="rounded-2xl bg-canvas px-4 py-3.5 text-[11.5px] leading-5 text-ink-secondary border border-line">
-          <strong className="text-ink">Financial Integrity Rules:</strong>
-          <ul className="mt-1 list-disc pl-4 space-y-0.5">
-            <li>Only cash actually received increases your available cash in hand.</li>
-            <li>Pending payments are tracked as receivables and do not inflate available balance.</li>
-            <li>Borrowed money (loans) is never classified as income.</li>
-            <li>Crop sales are automatically linked to crop revenue and never double-counted.</li>
-          </ul>
-        </div>
       </main>
 
       {/* Quick Add Income Selection Sheet */}
       <Sheet
         open={addMenuOpen}
         onClose={() => setAddMenuOpen(false)}
-        title="Record Income"
-        subtitle="Choose what kind of income you want to add"
+        title={t("income.addIncome")}
+        subtitle={t("income.selectIncomeType")}
       >
         <div className="space-y-2 py-1">
           <button
@@ -683,9 +638,9 @@ export default function IncomePage() {
               <Sparkles className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-ink">Crop Sale</span>
+              <span className="block text-[13px] font-semibold text-ink">{t("income.cropSales")}</span>
               <span className="block text-[11px] text-ink-muted">
-                Quantity, mandi, selling price, transport deduction & buyer payment
+                {t("income.cropSalesDesc")}
               </span>
             </div>
             <ChevronRight className="h-4 w-4 text-ink-muted shrink-0" />
@@ -700,9 +655,9 @@ export default function IncomePage() {
               <Milk className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-ink">Milk Sales</span>
+              <span className="block text-[13px] font-semibold text-ink">{t("income.milkSales")}</span>
               <span className="block text-[11px] text-ink-muted">
-                Litres, fat rate, dairy center, and payout status
+                {t("income.milkSalesDesc")}
               </span>
             </div>
             <ChevronRight className="h-4 w-4 text-ink-muted shrink-0" />
@@ -717,9 +672,9 @@ export default function IncomePage() {
               <Tractor className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-ink">Tractor Rental Income</span>
+              <span className="block text-[13px] font-semibold text-ink">{t("income.tractorRental")}</span>
               <span className="block text-[11px] text-ink-muted">
-                Ploughing, rotavator, hours, rate, and client farmer name
+                {t("income.tractorRentalDesc")}
               </span>
             </div>
             <ChevronRight className="h-4 w-4 text-ink-muted shrink-0" />
@@ -734,9 +689,9 @@ export default function IncomePage() {
               <Wrench className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-ink">Machinery Rental</span>
+              <span className="block text-[13px] font-semibold text-ink">{t("income.machineryRental")}</span>
               <span className="block text-[11px] text-ink-muted">
-                Thresher, sprayer, pumps, rate, and client farmer name
+                {t("income.machineryRentalDesc")}
               </span>
             </div>
             <ChevronRight className="h-4 w-4 text-ink-muted shrink-0" />
@@ -751,9 +706,9 @@ export default function IncomePage() {
               <Sparkles className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-ink">Agricultural Products</span>
+              <span className="block text-[13px] font-semibold text-ink">{t("income.agriProducts")}</span>
               <span className="block text-[11px] text-ink-muted">
-                Vegetables, fruits, fodder, straw bales, and compost
+                {t("income.agriProductsDesc")}
               </span>
             </div>
             <ChevronRight className="h-4 w-4 text-ink-muted shrink-0" />
@@ -768,9 +723,9 @@ export default function IncomePage() {
               <Wallet className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-ink">Household Income</span>
+              <span className="block text-[13px] font-semibold text-ink">{t("income.householdIncome")}</span>
               <span className="block text-[11px] text-ink-muted">
-                Salary, business income, shop earnings, and other income
+                {t("income.householdIncomeDesc")}
               </span>
             </div>
             <ChevronRight className="h-4 w-4 text-ink-muted shrink-0" />
