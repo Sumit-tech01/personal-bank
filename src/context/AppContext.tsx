@@ -46,6 +46,12 @@ import {
   storeSyncMeta,
 } from "@/lib/db";
 import {
+  translate,
+  formatLocalizedINR,
+  formatLocalizedNumber,
+  formatLocalizedDate,
+} from "@/lib/i18n";
+import {
   INVENTORY_CATEGORIES,
   LABOUR_ACTIVITIES,
   MAX_AMOUNT_PAISE,
@@ -86,6 +92,7 @@ import type {
   Land,
   LabourActivity,
   LabourPayment,
+  Language,
   Loan,
   LoanInterestType,
   LoanPaymentFrequency,
@@ -553,6 +560,18 @@ interface AppContextType {
   deleteCustomCategory: (id: string) => Promise<void>;
 
   preferences: Preferences;
+  language: Language;
+  setLanguage: (lang: Language) => Promise<void>;
+  t: (key: string, params?: Record<string, string | number>) => string;
+  formatCurrency: (
+    paise: number | undefined | null,
+    options?: { showDecimals?: boolean; absolute?: boolean }
+  ) => string;
+  formatNumber: (value: number, maxFractionDigits?: number) => string;
+  formatDate: (
+    date: string | Date | undefined,
+    style?: "short" | "medium" | "long"
+  ) => string;
   updatePreferences: (patch: Partial<Preferences>) => Promise<void>;
   rememberCategory: (key: string, category: string) => void;
 
@@ -615,9 +634,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [authLockUntil, setAuthLockUntil] = useState<number | null>(null);
   const [records, setRecords] = useState<AnyRecord[]>([]);
   const [preferences, setPreferences] = useState<Preferences>({
+    language: "en",
     notificationsEnabled: false,
     lastUsedCategory: {},
   });
+  const [language, setLanguageState] = useState<Language>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("personal_bank_lang") as Language;
+        if (saved === "mr" || saved === "en") return saved;
+      } catch {}
+    }
+    return "en";
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      document.documentElement.lang = language;
+    }
+  }, [language]);
   const [isOnline, setIsOnline] = useState(true);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("local");
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
@@ -714,6 +749,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ]);
         if (cancelled) return;
         setPreferences(storedPreferences);
+        if (storedPreferences.language) {
+          setLanguageState(storedPreferences.language);
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem("personal_bank_lang", storedPreferences.language);
+              document.documentElement.lang = storedPreferences.language;
+            } catch {}
+          }
+        }
 
         if (storedAccount) {
           if (!storedAccount.syncToken || !/^[a-f0-9]{64}$/i.test(storedAccount.syncToken)) {
@@ -3573,11 +3617,73 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [commitRecords, softDeleted]
   );
 
-  const updatePreferences = useCallback(async (patch: Partial<Preferences>) => {
-    const next = { ...preferences, ...patch };
-    setPreferences(next);
-    await storePreferences(next);
-  }, [preferences]);
+  const setLanguage = useCallback(
+    async (lang: Language) => {
+      setLanguageState(lang);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("personal_bank_lang", lang);
+          document.documentElement.lang = lang;
+        } catch {}
+      }
+      const next: Preferences = { ...preferences, language: lang };
+      setPreferences(next);
+      await storePreferences(next);
+    },
+    [preferences]
+  );
+
+  const updatePreferences = useCallback(
+    async (patch: Partial<Preferences>) => {
+      if (patch.language) {
+        setLanguageState(patch.language);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("personal_bank_lang", patch.language);
+            document.documentElement.lang = patch.language;
+          } catch {}
+        }
+      }
+      const next = { ...preferences, ...patch };
+      setPreferences(next);
+      await storePreferences(next);
+    },
+    [preferences]
+  );
+
+  const t = useCallback(
+    (key: string, params?: Record<string, string | number>) => {
+      return translate(language, key, params);
+    },
+    [language]
+  );
+
+  const formatCurrency = useCallback(
+    (
+      paise: number | undefined | null,
+      options?: { showDecimals?: boolean; absolute?: boolean }
+    ) => {
+      return formatLocalizedINR(paise, language, options);
+    },
+    [language]
+  );
+
+  const formatNumber = useCallback(
+    (value: number, maxFractionDigits = 2) => {
+      return formatLocalizedNumber(value, language, maxFractionDigits);
+    },
+    [language]
+  );
+
+  const formatDate = useCallback(
+    (
+      date: string | Date | undefined,
+      style: "short" | "medium" | "long" = "medium"
+    ) => {
+      return formatLocalizedDate(date, language, style);
+    },
+    [language]
+  );
 
   const rememberCategory = useCallback(
     (key: string, category: string) => {
@@ -3859,6 +3965,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addCustomCategory,
     deleteCustomCategory,
     preferences,
+    language,
+    setLanguage,
+    t,
+    formatCurrency,
+    formatNumber,
+    formatDate,
     updatePreferences,
     rememberCategory,
     isOnline,

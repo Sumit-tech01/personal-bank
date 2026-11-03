@@ -1,6 +1,7 @@
 const CACHE_NAME = "personal-bank-v1";
 const STATIC_ASSETS = [
   "/",
+  "/guidebook",
   "/manifest.json",
   "/icon.svg",
   "/icon-192.png",

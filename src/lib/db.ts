@@ -78,6 +78,7 @@ export async function storeAccount(account: Account): Promise<void> {
 export async function getPreferences(): Promise<Preferences> {
   const stored = await readMeta<Preferences>(PREFERENCES_KEY);
   return {
+    language: stored?.language ?? "en",
     notificationsEnabled: stored?.notificationsEnabled ?? false,
     lastUsedCategory: stored?.lastUsedCategory ?? {},
     lastBackupAt: stored?.lastBackupAt,

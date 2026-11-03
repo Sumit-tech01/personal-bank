@@ -1,6 +1,9 @@
+"use client";
+
 import React from "react";
 import { ArrowDownLeft, ArrowUpRight, Wallet } from "lucide-react";
 import { formatINR } from "@/lib/money";
+import { useApp } from "@/context/AppContext";
 
 interface BalanceCardProps {
   balancePaise: number;
@@ -19,11 +22,13 @@ export default function BalanceCard({
   pendingIncomePaise = 0,
   periodClosingBalancePaise,
 }: BalanceCardProps) {
+  const { t, language } = useApp();
   const negative = balancePaise < 0;
+
   return (
     <section
       className="relative overflow-hidden rounded-card bg-brand-800 p-5 text-white shadow-[0_18px_40px_-24px_rgba(23,63,40,0.8)]"
-      aria-label="Available balance"
+      aria-label={t("dashboard.availableBalance")}
     >
       <div className="pointer-events-none absolute -right-10 -top-14 h-40 w-40 rounded-full border-[26px] border-white/[0.055]" />
       <div className="pointer-events-none absolute -bottom-16 -left-8 h-36 w-36 rounded-full border-[20px] border-white/[0.04]" />
@@ -32,7 +37,7 @@ export default function BalanceCard({
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-white/65">
-              Available balance
+              {t("dashboard.availableBalance")}
             </p>
             <p className="mt-2 text-[34px] font-semibold leading-none tracking-[-0.035em] sm:text-[38px]">
               {formatINR(balancePaise)}
@@ -45,10 +50,12 @@ export default function BalanceCard({
 
         <p className="mt-2 text-[11.5px] leading-5 text-white/60">
           {negative
-            ? "You have spent more than you have received so far."
-            : "Money actually received minus money actually paid."}
+            ? (language === "mr" ? "आत्तापर्यंत मिळालेल्या रकमेपेक्षा झालेला खर्च जास्त आहे." : "You have spent more than you have received so far.")
+            : (language === "mr" ? "प्रत्यक्षात मिळालेले एकूण पैसे वजा प्रत्यक्षात झालेला एकूण खर्च." : "Money actually received minus money actually paid.")}
           {pendingIncomePaise > 0
-            ? ` ${formatINR(pendingIncomePaise)} is still pending and not included.`
+            ? (language === "mr"
+                ? ` ${formatINR(pendingIncomePaise)} येणे बाकी अजून शिलकीत समाविष्ट नाही.`
+                : ` ${formatINR(pendingIncomePaise)} is still pending and not included.`)
             : ""}
         </p>
 
@@ -57,7 +64,7 @@ export default function BalanceCard({
             <div className="flex items-center gap-1.5 text-white/60">
               <ArrowDownLeft className="h-3.5 w-3.5" />
               <span className="text-[10.5px] font-semibold uppercase tracking-wide">
-                Total Income
+                {t("dashboard.totalIncome")}
               </span>
             </div>
             <p className="mt-1 truncate text-[15px] font-semibold text-white">
@@ -68,7 +75,7 @@ export default function BalanceCard({
             <div className="flex items-center gap-1.5 text-white/60">
               <ArrowUpRight className="h-3.5 w-3.5" />
               <span className="text-[10.5px] font-semibold uppercase tracking-wide">
-                Total Spending
+                {t("dashboard.totalExpenses")}
               </span>
             </div>
             <p className="mt-1 truncate text-[15px] font-semibold text-white">
@@ -80,9 +87,9 @@ export default function BalanceCard({
         <div className="mt-3 flex items-center justify-between text-[10.5px] text-white/60">
           <span>{periodLabel}</span>
           {periodClosingBalancePaise !== undefined ? (
-            <span>Period Closing: {formatINR(periodClosingBalancePaise)}</span>
+            <span>{language === "mr" ? "कालावधी अखेर शिल्लक: " : "Period Closing: "}{formatINR(periodClosingBalancePaise)}</span>
           ) : (
-            <span>Cash basis</span>
+            <span>{language === "mr" ? "रोख आधारावर" : "Cash basis"}</span>
           )}
         </div>
       </div>

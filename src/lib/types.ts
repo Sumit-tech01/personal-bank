@@ -539,7 +539,10 @@ export interface Account {
   updatedAt: ISODateTime;
 }
 
+export type Language = "en" | "mr";
+
 export interface Preferences {
+  language?: Language;
   notificationsEnabled: boolean;
   lastUsedCategory: Record<string, string>;
   lastBackupAt?: string;

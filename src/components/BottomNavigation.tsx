@@ -27,11 +27,20 @@ const moreRoutes = [
   "/lending",
   "/inventory",
   "/family",
+  "/guidebook",
 ];
 
 export default function BottomNavigation() {
   const pathname = usePathname();
-  const { openAdd } = useApp();
+  const { openAdd, t } = useApp();
+
+  const navItems = [
+    { href: "/", label: t("nav.home"), icon: Home },
+    { href: "/expenses", label: t("nav.expenses"), icon: Receipt },
+    { href: "/farm", label: t("nav.farm"), icon: Sprout },
+    { href: "/reports", label: t("nav.reports"), icon: BarChart3 },
+    { href: "/more", label: t("nav.more"), icon: MoreHorizontal },
+  ];
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -45,7 +54,7 @@ export default function BottomNavigation() {
         type="button"
         onClick={() => openAdd()}
         className="no-print fixed bottom-[calc(74px+env(safe-area-inset-bottom))] left-1/2 z-50 flex h-[58px] w-[58px] -translate-x-1/2 items-center justify-center rounded-full bg-brand-600 text-white shadow-float ring-[6px] ring-canvas transition active:scale-95"
-        aria-label="Add a record"
+        aria-label={t("nav.addRecord")}
       >
         <Plus className="h-7 w-7" strokeWidth={2.4} />
       </button>
@@ -55,7 +64,7 @@ export default function BottomNavigation() {
         aria-label="Main navigation"
       >
         <div className="safe-bottom mx-auto flex h-[68px] w-full max-w-[560px] items-stretch justify-between px-1.5 md:max-w-2xl md:px-4">
-          {items.map((item) => {
+          {navItems.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
             return (
