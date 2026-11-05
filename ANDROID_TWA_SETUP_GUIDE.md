@@ -36,7 +36,7 @@ To compile the Android App Bundle (`.aab`) locally, the following tools are requ
 ## 3. Keystore Generation & Digital Asset Links
 
 ### 3.1 Generate a Production Signing Keystore
-Run the following command to generate the production release keystore:
+When you are ready to prepare your release build, run the following command to generate the production release keystore:
 
 ```bash
 cd /Users/apple/Downloads/pappa/android
@@ -50,14 +50,23 @@ keytool -genkeypair \
   -validity 10000 \
   -storepass YOUR_SECURE_PASSWORD \
   -keypass YOUR_SECURE_PASSWORD \
-  -dname "CN=Personal Bank, OU=Finance, O=Sumit Patil, L=Mumbai, ST=Maharashtra, C=IN"
+  -dname "CN=Personal Bank, OU=Finance, O=Sumit Jagtap, L=Mumbai, ST=Maharashtra, C=IN"
 ```
 
+#### Key Alias & Parameter Rules:
+- **Alias:** Use `personalbank` (matches `"signingKey.alias": "personalbank"` in `twa-manifest.json`).
+- **Keysize & Algorithm:** `RSA 2048-bit` with `10,000 days` validity (required for Google Play).
+- **Password Protection:** Choose a high-entropy passphrase (minimum 16 characters). Never reuse repository or server passwords.
+
+#### Keystore Security & Backup Protocol:
 > [!CAUTION]
-> **CRITICAL SECURITY RULE:** Never commit `release.keystore` or passwords to git. The `.gitignore` in `android/` is already configured to prevent this. Back up `release.keystore` and its password in a secure password manager. If you lose this key, you will never be able to update the app on Google Play.
+> **CRITICAL SECURITY RULE:** Never commit `release.keystore`, `.jks`, or keystore passwords to git. The `.gitignore` in `android/` strictly excludes these files.
+> 1. Store `release.keystore` and its passwords in a secure team password manager (e.g., 1Password, Bitwarden).
+> 2. Create redundant, encrypted offline backups (e.g. encrypted USB in cold storage).
+> 3. If this keystore is permanently lost before enrolling in Google Play App Signing, you will **never** be able to update the app on the Google Play Store under this package name.
 
 ### 3.2 Extract the SHA-256 Certificate Fingerprint
-Run `keytool -list` to obtain your SHA-256 certificate fingerprint:
+Run `keytool -list` to extract your SHA-256 certificate fingerprint:
 
 ```bash
 keytool -list -v -keystore release.keystore -alias personalbank -storepass YOUR_SECURE_PASSWORD
@@ -71,7 +80,11 @@ Certificate fingerprints:
 ```
 
 ### 3.3 Configure Digital Asset Links (`assetlinks.json`)
-Replace the fingerprint placeholder in [`public/.well-known/assetlinks.json`](file:///Users/apple/Downloads/pappa/public/.well-known/assetlinks.json):
+The application serves Digital Asset Links at `https://personalbannk.vercel.app/.well-known/assetlinks.json`.
+
+Currently, the endpoint contains an explicitly documented placeholder fingerprint (`00:00:00...`) to maintain a safe, non-fabricated state.
+
+Once your real fingerprint is extracted, update [`public/.well-known/assetlinks.json`](file:///Users/apple/Downloads/pappa/public/.well-known/assetlinks.json) or set the `ANDROID_SHA256_FINGERPRINT` environment variable in Vercel:
 
 ```json
 [
@@ -79,7 +92,7 @@ Replace the fingerprint placeholder in [`public/.well-known/assetlinks.json`](fi
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.personalbank.app",
+      "package_name": "com.sumitjagtap.personalbank",
       "sha256_cert_fingerprints": [
         "14:6D:E8:F2:8C:3A:9B:41:22:98:F0:B5:12:34:56:78:9A:BC:DE:F0:12:34:56:78"
       ]
@@ -88,8 +101,20 @@ Replace the fingerprint placeholder in [`public/.well-known/assetlinks.json`](fi
 ]
 ```
 
-> [!NOTE]
-> If Google Play App Signing is enabled in Google Play Console (standard for new apps), Google re-signs your app with its own key. You will need to add **both** fingerprints (your local upload key AND the Google Play App Signing key from the Play Console dashboard) to `assetlinks.json`.
+### 3.4 Google Play App Signing Dual-Fingerprint Requirement
+When deploying via Google Play:
+1. Google Play App Signing is mandatory for all new applications.
+2. Your local `release.keystore` becomes your **Upload Key**.
+3. Google generates and holds the official **App Signing Key** in Google's secure infrastructure.
+4. Android devices downloading the app from Google Play verify against Google's App Signing certificate fingerprint, NOT your local upload key!
+5. **Action Required:** Once your first bundle is uploaded to Google Play Console, navigate to **Release > Setup > App Signing**, copy the **App signing key certificate SHA-256 fingerprint**, and add it as a second entry in `assetlinks.json`:
+   ```json
+   "sha256_cert_fingerprints": [
+     "YOUR_LOCAL_UPLOAD_KEY_SHA256_FINGERPRINT",
+     "GOOGLE_PLAY_APP_SIGNING_KEY_SHA256_FINGERPRINT"
+   ]
+   ```
+   This ensures that both local testing APKs and Play Store production builds pass domain verification with zero browser address bar.
 
 ---
 
@@ -97,7 +122,7 @@ Replace the fingerprint placeholder in [`public/.well-known/assetlinks.json`](fi
 
 ### 4.1 Initialize the Project (Using Prepared Manifest)
 We have already generated the complete [`android/twa-manifest.json`](file:///Users/apple/Downloads/pappa/android/twa-manifest.json) tailored for Personal Bank:
-- **Package ID:** `com.personalbank.app`
+- **Package ID:** `com.sumitjagtap.personalbank`
 - **Host:** `personalbannk.vercel.app`
 - **Theme Color:** `#2F7D4F`
 - **Background Color:** `#F5F7F3`

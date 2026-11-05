@@ -85,6 +85,7 @@
 ## 4. Technical Bundle & Testing Phase
 
 ### 4.1 Production Bundle (`.aab`)
+- [ ] **Application ID (Package Name):** `com.sumitjagtap.personalbank`
 - [ ] Generated signed release bundle using Bubblewrap:
   - File: `android/app-release-bundle.aab`.
   - Target SDK: Android 14 (API level 34) or higher.

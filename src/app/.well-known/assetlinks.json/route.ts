@@ -6,7 +6,7 @@ export async function GET() {
       relation: ["delegate_permission/common.handle_all_urls"],
       target: {
         namespace: "android_app",
-        package_name: process.env.ANDROID_PACKAGE_NAME || "com.personalbank.app",
+        package_name: process.env.ANDROID_PACKAGE_NAME || "com.sumitjagtap.personalbank",
         sha256_cert_fingerprints: [
           process.env.ANDROID_SHA256_FINGERPRINT ||
             "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00",
