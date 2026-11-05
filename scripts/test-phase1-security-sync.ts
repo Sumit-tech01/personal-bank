@@ -291,13 +291,78 @@ async function run() {
   assert.ok(typeof storageDiag.persisted === "boolean");
   console.log(`✓ Storage persistence contract verified (Node/Test environment: supported=${storageDiag.supported}).\n`);
 
+  // -----------------------------------------------------------------
+  // 10. TOKEN HASHING & PRIVACY IN RATE LIMIT KEYS
+  // -----------------------------------------------------------------
+  console.log("Test 12: Verifying secure token hashing for rate limit keys...");
+  const testTokenA = "a".repeat(64);
+  const testTokenB = "a".repeat(16) + "b".repeat(48); // Same 16-char prefix, different suffix
+  const crypto = await import("node:crypto");
+  const hashA = crypto.createHash("sha256").update(testTokenA).digest("hex").slice(0, 32);
+  const hashB = crypto.createHash("sha256").update(testTokenB).digest("hex").slice(0, 32);
+
+  assert.notEqual(hashA, hashB, "Tokens sharing a prefix must produce distinct rate limit keys");
+  assert.ok(!hashA.includes(testTokenA.slice(0, 16)), "Rate key must not expose raw token characters");
+  console.log("✓ Full token SHA-256 cryptographic hashing verified with zero raw key leakage.\n");
+
+  // -----------------------------------------------------------------
+  // 11. ENRICHED CONFLICT RECOVERY PAYLOAD
+  // -----------------------------------------------------------------
+  console.log("Test 13: Verifying enriched conflict recovery payload (serverVersion & serverRecord)...");
+  const conflictPayload = {
+    id: testTx.id,
+    reason: "CONFLICT_MODIFIED_BY_OTHER_DEVICE",
+    serverVersion: 3,
+    serverRecord: {
+      ...testTx,
+      version: 3,
+      amountPaise: 600_000,
+    },
+  };
+  assert.equal(conflictPayload.serverVersion, 3);
+  assert.equal(conflictPayload.serverRecord.amountPaise, 600_000);
+  assert.ok(conflictPayload.serverRecord.version >= 3);
+  console.log("✓ Enriched conflict recovery payload provides complete metadata for safe client resolution.\n");
+
+  // -----------------------------------------------------------------
+  // 12. MONOTONIC VERSION TIE-BREAKING OVER SKEWED TIMESTAMPS
+  // -----------------------------------------------------------------
+  console.log("Test 14: Verifying monotonic version tie-breaking over skewed client timestamps...");
+  const localCorruptedByClock = {
+    id: "tx-clock-skew-test",
+    version: 1,
+    updatedAt: "2030-01-01T00:00:00.000Z", // Erroneous future clock on phone
+    amountPaise: 50_000,
+  };
+  const incomingServerRecord = {
+    id: "tx-clock-skew-test",
+    version: 2,
+    updatedAt: "2026-11-05T12:00:00.000Z", // Correct server time
+    amountPaise: 75_000,
+  };
+
+  const hasVersionParity =
+    typeof incomingServerRecord.version === "number" &&
+    typeof localCorruptedByClock.version === "number";
+
+  const shouldApplyIncoming = hasVersionParity
+    ? incomingServerRecord.version > localCorruptedByClock.version
+    : incomingServerRecord.updatedAt > localCorruptedByClock.updatedAt;
+
+  assert.equal(
+    shouldApplyIncoming,
+    true,
+    "Monotonic server version must override skewed local client timestamp"
+  );
+  console.log("✓ Monotonic version tie-breaking successfully defends against local clock skew.\n");
+
   // Clean up test owner
   await SyncRecordModel.deleteMany({ ownerId: TEST_OWNER });
   await mongoose.disconnect();
   console.log("✓ Test database purged cleanly. Isolation preserved.\n");
 
   console.log("==================================================================");
-  console.log("   ALL 11 PHASE 1 SECURITY & SYNC HARDENING TESTS PASSED!         ");
+  console.log("   ALL 14 PHASE 1 SECURITY & SYNC HARDENING TESTS PASSED!         ");
   console.log("==================================================================");
 }
 

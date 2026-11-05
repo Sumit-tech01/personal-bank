@@ -120,36 +120,61 @@ export async function checkDistributedRateLimit(
   const timeoutId = setTimeout(() => controller.abort(), 1500);
 
   try {
-    // Upstash Redis REST pipeline: [INCR, EXPIRE]
-    const pipelineUrl = `${rawUrl}/pipeline`;
-    const response = await fetch(pipelineUrl, {
+    // Primary: Atomic Lua script executed in single-threaded Redis core
+    // Guarantees INCR and EXPIRE are executed atomically without command interleaving
+    const luaScript =
+      "local c = redis.call('INCR', KEYS[1]); if c == 1 or redis.call('TTL', KEYS[1]) < 0 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end; return c;";
+
+    const response = await fetch(rawUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify([
-        ["INCR", redisKey],
-        ["EXPIRE", redisKey, windowSeconds, "NX"], // Only set expiry on new key
-      ]),
+      body: JSON.stringify(["EVAL", luaScript, 1, redisKey, windowSeconds]),
       signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) {
+    let currentCount: number | null = null;
+
+    if (response.ok) {
+      const data = (await response.json()) as { result?: unknown; error?: string };
+      if (typeof data?.result === "number") {
+        currentCount = data.result;
+      }
+    }
+
+    // Fallback: If EVAL is disabled or returned non-200, attempt pipeline [INCR, EXPIRE]
+    if (currentCount === null) {
+      const pipelineUrl = `${rawUrl}/pipeline`;
+      const pipeRes = await fetch(pipelineUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify([
+          ["INCR", redisKey],
+          ["EXPIRE", redisKey, windowSeconds, "NX"],
+        ]),
+      });
+
+      if (pipeRes.ok) {
+        const pipeData = (await pipeRes.json()) as Array<{ result?: unknown }>;
+        if (Array.isArray(pipeData) && typeof pipeData[0]?.result === "number") {
+          currentCount = pipeData[0].result;
+        }
+      }
+    }
+
+    if (currentCount === null) {
       console.warn(
-        `[RateLimit Warning] Upstash returned status ${response.status}. Falling back to memory.`
+        `[RateLimit Warning] Upstash command failed. Falling back to memory.`
       );
       return checkMemoryRateLimit(key, limit, windowMs);
     }
-
-    const data = (await response.json()) as Array<{ result?: unknown; error?: string }>;
-    if (!Array.isArray(data) || typeof data[0]?.result !== "number") {
-      return checkMemoryRateLimit(key, limit, windowMs);
-    }
-
-    const currentCount = data[0].result;
     const now = Date.now();
     const reset = now + windowMs;
     const success = currentCount <= limit;

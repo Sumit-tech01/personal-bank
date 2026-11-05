@@ -882,8 +882,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setSyncStatus("local");
             return;
           }
+          const appliedIds = new Set(response.applied ?? []);
+          const appliedRecords = batch.filter((record) => appliedIds.has(record.id));
           await markRecordsSynced(
-            batch.map((record) => ({ id: record.id, updatedAt: record.updatedAt }))
+            appliedRecords.map((record) => ({ id: record.id, updatedAt: record.updatedAt }))
           );
         }
 
@@ -916,7 +918,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             continue;
           }
           const local = await getRecord<AnyRecord>(incoming.id);
-          if (!local || incoming.updatedAt > local.updatedAt) {
+          const hasVersionParity =
+            typeof incoming.version === "number" && typeof local?.version === "number";
+          const shouldApply =
+            !local ||
+            (hasVersionParity
+              ? (incoming.version as number) > (local.version as number)
+              : incoming.updatedAt > local.updatedAt);
+
+          if (shouldApply) {
             toApply.push({
               ...(incoming as AnyRecord),
               ownerId: currentAccount.id,

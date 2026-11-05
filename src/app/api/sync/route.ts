@@ -35,6 +35,11 @@ function ownerFromToken(token: string): string {
   return createHash("sha256").update(token).digest("hex").slice(0, 40);
 }
 
+function rateKeyFromToken(token: string, prefix: "get" | "post"): string {
+  const hash = createHash("sha256").update(token).digest("hex").slice(0, 32);
+  return `${prefix}_${hash}`;
+}
+
 function isValidToken(value: unknown): value is string {
   return typeof value === "string" && /^[a-f0-9]{64}$/i.test(value);
 }
@@ -71,7 +76,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const rateKey = `get_${token.slice(0, 16)}`;
+  const rateKey = rateKeyFromToken(token, "get");
   const rateLimit = await checkDistributedRateLimit(rateKey, MAX_REQUESTS_PER_WINDOW, 60);
   const rateHeaders = {
     "X-RateLimit-Limit": String(rateLimit.limit),
@@ -127,6 +132,10 @@ export async function GET(request: NextRequest) {
       database,
       collection,
       cloudRecordsCount,
+      rateLimiting: {
+        provider: rateLimit.provider,
+        distributed: rateLimit.provider === "upstash",
+      },
       serverTime: new Date().toISOString(),
     },
     { headers: rateHeaders }
@@ -143,7 +152,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const rateKey = `post_${token.slice(0, 16)}`;
+  const rateKey = rateKeyFromToken(token, "post");
   const rateLimit = await checkDistributedRateLimit(rateKey, MAX_REQUESTS_PER_WINDOW, 60);
   const rateHeaders = {
     "X-RateLimit-Limit": String(rateLimit.limit),
@@ -208,7 +217,12 @@ export async function POST(request: NextRequest) {
 
   const ownerId = ownerFromToken(token);
   const applied: string[] = [];
-  const rejected: { id?: string; reason: string; serverRecord?: unknown }[] = [];
+  const rejected: {
+    id?: string;
+    reason: string;
+    serverVersion?: number;
+    serverRecord?: unknown;
+  }[] = [];
 
   const serverNow = new Date();
   const serverNowMs = serverNow.getTime();
@@ -294,10 +308,15 @@ export async function POST(request: NextRequest) {
       // Conflict detection via monotonic versioning or timestamp fallback
       if (typeof change.baseVersion === "number") {
         if (change.baseVersion < currentVersion) {
+          const serverPayload = {
+            ...(existing.data || {}),
+            version: currentVersion,
+          };
           rejected.push({
             id,
             reason: "CONFLICT_MODIFIED_BY_OTHER_DEVICE",
-            serverRecord: existing.data,
+            serverVersion: currentVersion,
+            serverRecord: serverPayload,
           });
           continue;
         }
