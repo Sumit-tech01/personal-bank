@@ -6,6 +6,10 @@ export interface CloudStatsResponse {
   database: string;
   collection: string;
   cloudRecordsCount: number;
+  rateLimiting?: {
+    provider: string;
+    distributed: boolean;
+  };
   serverTime: string;
   error?: string;
 }
@@ -40,7 +44,12 @@ export interface SyncResponse {
   success: boolean;
   configured: boolean;
   applied?: string[];
-  rejected?: { id?: string; reason: string }[];
+  rejected?: {
+    id?: string;
+    reason: string;
+    serverVersion?: number;
+    serverRecord?: AnyRecord | Record<string, unknown>;
+  }[];
   records?: AnyRecord[];
   serverTime?: string;
   error?: string;
@@ -64,6 +73,7 @@ export async function syncWithCloud(input: {
         id: record.id,
         entity: record.entity,
         updatedAt: record.updatedAt,
+        baseVersion: record.version ?? record.baseVersion,
         data: record,
       })),
     }),

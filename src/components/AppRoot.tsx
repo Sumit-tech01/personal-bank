@@ -8,6 +8,7 @@ import BottomNavigation from "./BottomNavigation";
 import AddRecordSheet from "./AddRecordSheet";
 import { LockScreen, SetupScreen, SplashScreen } from "./auth/AuthScreens";
 import { todayISO } from "@/lib/dates";
+import { requestStoragePersistence } from "@/lib/db";
 
 function DataLoadingScreen() {
   const { t } = useApp();
@@ -63,6 +64,8 @@ export default function AppRoot({ children }: { children: React.ReactNode }) {
         .register("/sw.js")
         .catch((err) => console.warn("Service worker registration failed:", err));
     }
+    // Safe, non-blocking persistent storage request (protects against Android OS eviction)
+    void requestStoragePersistence();
   }, []);
 
   useEffect(() => {

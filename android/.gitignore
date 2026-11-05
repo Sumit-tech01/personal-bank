@@ -1,0 +1,12 @@
+# Android Keystores (CRITICAL: never commit private keys)
+*.keystore
+*.jks
+signing-key.properties
+
+# Build outputs
+*.aab
+*.apk
+build/
+.gradle/
+app/build/
+local.properties

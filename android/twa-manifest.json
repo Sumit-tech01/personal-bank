@@ -1,0 +1,41 @@
+{
+  "packageId": "com.personalbank.app",
+  "host": "personalbannk.vercel.app",
+  "name": "Personal Bank",
+  "launcherName": "Personal Bank",
+  "themeColor": "#2F7D4F",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#F5F7F3",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://personalbannk.vercel.app/icon-512.png",
+  "maskableIconUrl": "https://personalbannk.vercel.app/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./release.keystore",
+    "alias": "personalbank"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://personalbannk.vercel.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": false
+    },
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isAndroidXEnabled": true
+}
