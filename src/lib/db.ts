@@ -211,3 +211,54 @@ export async function getDatabaseStats(ownerId: string): Promise<{
   }
   return { total: records.filter((record) => !record.deletedAt).length, byEntity };
 }
+
+export interface StoragePersistenceDiagnostic {
+  supported: boolean;
+  persisted: boolean;
+  quotaBytes?: number;
+  usageBytes?: number;
+}
+
+/**
+ * Safe, best-effort request for persistent IndexedDB storage (navigator.storage.persist).
+ * Prevents Android OS from evicting local financial records under device storage pressure.
+ * Operates non-blockingly and returns diagnostic metrics.
+ */
+export async function requestStoragePersistence(): Promise<StoragePersistenceDiagnostic> {
+  if (
+    typeof window === "undefined" ||
+    typeof navigator === "undefined" ||
+    !navigator.storage
+  ) {
+    return { supported: false, persisted: false };
+  }
+
+  try {
+    let persisted = false;
+    if (typeof navigator.storage.persisted === "function") {
+      persisted = await navigator.storage.persisted();
+    }
+    if (!persisted && typeof navigator.storage.persist === "function") {
+      persisted = await navigator.storage.persist();
+    }
+
+    let quotaBytes: number | undefined;
+    let usageBytes: number | undefined;
+    if (typeof navigator.storage.estimate === "function") {
+      const estimate = await navigator.storage.estimate();
+      quotaBytes = estimate.quota;
+      usageBytes = estimate.usage;
+    }
+
+    return {
+      supported: true,
+      persisted,
+      quotaBytes,
+      usageBytes,
+    };
+  } catch (err) {
+    console.warn("Storage persistence request failed", err);
+    return { supported: true, persisted: false };
+  }
+}
+

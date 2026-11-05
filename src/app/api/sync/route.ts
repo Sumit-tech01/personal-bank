@@ -6,6 +6,7 @@ import {
   getMongoUri,
 } from "@/lib/mongodb";
 import { SyncRecordModel } from "@/models";
+import { checkDistributedRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,28 +28,8 @@ const ALLOWED_ENTITIES = new Set([
 const MAX_CHANGES_PER_REQUEST = 50;
 const MAX_RECORD_BYTES = 400_000;
 const MAX_PULL_RECORDS = 10_000;
-
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-const rateLimitMap = new Map<string, RateLimitEntry>();
-const RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_REQUESTS_PER_WINDOW = 120;
-
-function checkRateLimit(key: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(key);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= MAX_REQUESTS_PER_WINDOW) {
-    return false;
-  }
-  entry.count += 1;
-  return true;
-}
+const MAX_ALLOWED_FUTURE_DRIFT_MS = 5 * 60 * 1000; // 5 minutes tolerance for client clock skew
 
 function ownerFromToken(token: string): string {
   return createHash("sha256").update(token).digest("hex").slice(0, 40);
@@ -67,6 +48,19 @@ function isIsoTimestamp(value: unknown): value is string {
   );
 }
 
+function isDataPayloadEqual(a: unknown, b: unknown): boolean {
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  const cleanA = { ...(a as Record<string, unknown>) };
+  delete cleanA.dirty;
+  delete cleanA.version;
+  delete cleanA.baseVersion;
+  const cleanB = { ...(b as Record<string, unknown>) };
+  delete cleanB.dirty;
+  delete cleanB.version;
+  delete cleanB.baseVersion;
+  return JSON.stringify(cleanA) === JSON.stringify(cleanB);
+}
+
 export async function GET(request: NextRequest) {
   const authorization = request.headers.get("authorization") ?? "";
   const token = authorization.replace(/^Bearer\s+/i, "").trim();
@@ -78,22 +72,33 @@ export async function GET(request: NextRequest) {
   }
 
   const rateKey = `get_${token.slice(0, 16)}`;
-  if (!checkRateLimit(rateKey)) {
+  const rateLimit = await checkDistributedRateLimit(rateKey, MAX_REQUESTS_PER_WINDOW, 60);
+  const rateHeaders = {
+    "X-RateLimit-Limit": String(rateLimit.limit),
+    "X-RateLimit-Remaining": String(rateLimit.remaining),
+    "X-RateLimit-Reset": String(rateLimit.reset),
+    "X-RateLimit-Provider": rateLimit.provider,
+  };
+
+  if (!rateLimit.success) {
     return NextResponse.json(
       { success: false, error: "Too many requests. Please wait a moment." },
-      { status: 429 }
+      { status: 429, headers: rateHeaders }
     );
   }
 
   if (!getMongoUri()) {
-    return NextResponse.json({
-      success: true,
-      configured: false,
-      database: "local",
-      collection: "none",
-      cloudRecordsCount: 0,
-      serverTime: new Date().toISOString(),
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        configured: false,
+        database: "local",
+        collection: "none",
+        cloudRecordsCount: 0,
+        serverTime: new Date().toISOString(),
+      },
+      { headers: rateHeaders }
+    );
   }
 
   const connection = await connectToDatabase();
@@ -106,7 +111,7 @@ export async function GET(request: NextRequest) {
         code: diag?.code || "ERR_DATABASE_UNAVAILABLE",
         error: diag?.message || "Cloud database is unavailable.",
       },
-      { status: 503 }
+      { status: 503, headers: rateHeaders }
     );
   }
 
@@ -115,14 +120,17 @@ export async function GET(request: NextRequest) {
   const database = connection.connection.name || "personal_bank";
   const collection = SyncRecordModel.collection.name || "syncrecords";
 
-  return NextResponse.json({
-    success: true,
-    configured: true,
-    database,
-    collection,
-    cloudRecordsCount,
-    serverTime: new Date().toISOString(),
-  });
+  return NextResponse.json(
+    {
+      success: true,
+      configured: true,
+      database,
+      collection,
+      cloudRecordsCount,
+      serverTime: new Date().toISOString(),
+    },
+    { headers: rateHeaders }
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -136,10 +144,18 @@ export async function POST(request: NextRequest) {
   }
 
   const rateKey = `post_${token.slice(0, 16)}`;
-  if (!checkRateLimit(rateKey)) {
+  const rateLimit = await checkDistributedRateLimit(rateKey, MAX_REQUESTS_PER_WINDOW, 60);
+  const rateHeaders = {
+    "X-RateLimit-Limit": String(rateLimit.limit),
+    "X-RateLimit-Remaining": String(rateLimit.remaining),
+    "X-RateLimit-Reset": String(rateLimit.reset),
+    "X-RateLimit-Provider": rateLimit.provider,
+  };
+
+  if (!rateLimit.success) {
     return NextResponse.json(
       { success: false, error: "Too many sync requests. Please wait a moment." },
-      { status: 429 }
+      { status: 429, headers: rateHeaders }
     );
   }
 
@@ -152,7 +168,7 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json(
       { success: false, error: "Invalid sync request." },
-      { status: 400 }
+      { status: 400, headers: rateHeaders }
     );
   }
 
@@ -160,17 +176,20 @@ export async function POST(request: NextRequest) {
   if (changes.length > MAX_CHANGES_PER_REQUEST) {
     return NextResponse.json(
       { success: false, error: "Too many changes in one sync request." },
-      { status: 413 }
+      { status: 413, headers: rateHeaders }
     );
   }
 
   if (!getMongoUri()) {
-    return NextResponse.json({
-      success: true,
-      configured: false,
-      records: [],
-      serverTime: new Date().toISOString(),
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        configured: false,
+        records: [],
+        serverTime: new Date().toISOString(),
+      },
+      { headers: rateHeaders }
+    );
   }
 
   const connection = await connectToDatabase();
@@ -183,13 +202,17 @@ export async function POST(request: NextRequest) {
         code: diag?.code || "ERR_DATABASE_UNAVAILABLE",
         error: diag?.message || "Cloud database is unavailable.",
       },
-      { status: 503 }
+      { status: 503, headers: rateHeaders }
     );
   }
 
   const ownerId = ownerFromToken(token);
   const applied: string[] = [];
-  const rejected: { id?: string; reason: string }[] = [];
+  const rejected: { id?: string; reason: string; serverRecord?: unknown }[] = [];
+
+  const serverNow = new Date();
+  const serverNowMs = serverNow.getTime();
+  const serverNowIso = serverNow.toISOString();
 
   if (process.env.NODE_ENV !== "production") {
     console.log(
@@ -206,6 +229,7 @@ export async function POST(request: NextRequest) {
       id?: unknown;
       entity?: unknown;
       updatedAt?: unknown;
+      baseVersion?: unknown;
       data?: unknown;
     };
 
@@ -228,11 +252,18 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
+    // --- Clock-skew defense: Clamp future-dated client timestamps ---
+    const clientUpdatedMs = Date.parse(change.updatedAt);
+    const isFutureDated = clientUpdatedMs > serverNowMs + MAX_ALLOWED_FUTURE_DRIFT_MS;
+    const effectiveUpdatedAt = isFutureDated ? serverNowIso : change.updatedAt;
+
     const data = { ...(change.data as Record<string, unknown>) };
     data.id = id;
     data.entity = entity;
     data.ownerId = ownerId;
+    data.updatedAt = effectiveUpdatedAt;
     delete data.dirty;
+    delete data.baseVersion;
 
     const serialized = JSON.stringify(data);
     if (serialized.length > MAX_RECORD_BYTES) {
@@ -241,27 +272,79 @@ export async function POST(request: NextRequest) {
     }
 
     const existing = await SyncRecordModel.findOne({ ownerId, recordId: id })
-      .select({ updatedAt: 1 })
-      .lean<{ updatedAt: string } | null>();
+      .select({ updatedAt: 1, version: 1, data: 1 })
+      .lean<{
+        updatedAt: string;
+        version?: number;
+        data?: Record<string, unknown>;
+      } | null>();
 
-    if (existing && existing.updatedAt > change.updatedAt) {
-      rejected.push({ id, reason: "A newer version already exists." });
-      continue;
-    }
+    if (existing) {
+      const currentVersion = typeof existing.version === "number" ? existing.version : 1;
+      const existingUpdatedMs = Date.parse(existing.updatedAt);
+      const existingIsFutureCorrupt =
+        existingUpdatedMs > serverNowMs + MAX_ALLOWED_FUTURE_DRIFT_MS;
 
-    await SyncRecordModel.findOneAndUpdate(
-      { ownerId, recordId: id },
-      {
-        $set: {
-          entity,
-          updatedAt: change.updatedAt,
-          data,
-          lastSeenAt: new Date(),
+      // Idempotency: exact same data payload already synced
+      if (isDataPayloadEqual(data, existing.data)) {
+        applied.push(id);
+        continue;
+      }
+
+      // Conflict detection via monotonic versioning or timestamp fallback
+      if (typeof change.baseVersion === "number") {
+        if (change.baseVersion < currentVersion) {
+          rejected.push({
+            id,
+            reason: "CONFLICT_MODIFIED_BY_OTHER_DEVICE",
+            serverRecord: existing.data,
+          });
+          continue;
+        }
+      } else if (!existingIsFutureCorrupt && existing.updatedAt > change.updatedAt) {
+        rejected.push({ id, reason: "A newer version already exists." });
+        continue;
+      }
+
+      const nextVersion = currentVersion + 1;
+      data.version = nextVersion;
+
+      await SyncRecordModel.findOneAndUpdate(
+        { ownerId, recordId: id },
+        {
+          $set: {
+            entity,
+            updatedAt: effectiveUpdatedAt,
+            version: nextVersion,
+            serverUpdatedAt: serverNow,
+            data,
+            lastSeenAt: serverNow,
+          },
         },
-      },
-      { upsert: true, returnDocument: "after" }
-    );
-    applied.push(id);
+        { upsert: true, returnDocument: "after" }
+      );
+      applied.push(id);
+    } else {
+      // First insert
+      const nextVersion = 1;
+      data.version = nextVersion;
+
+      await SyncRecordModel.findOneAndUpdate(
+        { ownerId, recordId: id },
+        {
+          $set: {
+            entity,
+            updatedAt: effectiveUpdatedAt,
+            version: nextVersion,
+            serverUpdatedAt: serverNow,
+            data,
+            lastSeenAt: serverNow,
+          },
+        },
+        { upsert: true, returnDocument: "after" }
+      );
+      applied.push(id);
+    }
   }
 
   const since =
@@ -275,7 +358,7 @@ export async function POST(request: NextRequest) {
   })
     .sort({ updatedAt: 1 })
     .limit(MAX_PULL_RECORDS)
-    .lean<{ data: Record<string, unknown>; updatedAt: string }[]>();
+    .lean<{ data: Record<string, unknown>; updatedAt: string; version?: number }[]>();
 
   if (process.env.NODE_ENV !== "production") {
     console.log(
@@ -283,12 +366,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({
-    success: true,
-    configured: true,
-    applied,
-    rejected,
-    records: pulled.map((row) => row.data),
-    serverTime: new Date().toISOString(),
-  });
+  return NextResponse.json(
+    {
+      success: true,
+      configured: true,
+      applied,
+      rejected,
+      records: pulled.map((row) => ({
+        ...row.data,
+        version: row.version ?? (row.data as any)?.version ?? 1,
+      })),
+      serverTime: serverNowIso,
+    },
+    { headers: rateHeaders }
+  );
 }

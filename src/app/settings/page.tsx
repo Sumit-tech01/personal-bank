@@ -73,6 +73,7 @@ export default function SettingsPage() {
     pendingUploadsCount,
     failedUploadsCount,
     lastSyncError,
+    storagePersistence,
     refreshCloudStats,
     isOnline,
     notify,
@@ -673,6 +674,29 @@ export default function SettingsPage() {
                   {cloudRecordsCount !== null ? cloudRecordsCount : "—"}
                 </p>
               </div>
+            </div>
+
+            {/* Offline Storage Durability Status */}
+            <div className="mt-2.5 flex items-center justify-between rounded-xl bg-canvas/60 px-3 py-2 text-[11px] text-ink-secondary">
+              <span className="flex items-center gap-1.5 font-medium text-ink">
+                <ShieldCheck className="h-3.5 w-3.5 text-brand-700" />
+                IndexedDB Persistence:
+              </span>
+              <span
+                className={`font-semibold ${
+                  storagePersistence?.persisted
+                    ? "text-positive"
+                    : storagePersistence?.supported
+                    ? "text-brand-800"
+                    : "text-ink-muted"
+                }`}
+              >
+                {storagePersistence?.persisted
+                  ? "Protected (Android/Browser)"
+                  : storagePersistence?.supported
+                  ? "Active (Best-effort)"
+                  : "Standard Storage"}
+              </span>
             </div>
 
             <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-canvas/80 px-3 py-2 text-[11px] text-ink-secondary">

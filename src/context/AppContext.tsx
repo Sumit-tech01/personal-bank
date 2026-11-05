@@ -44,6 +44,8 @@ import {
   storeAccount,
   storePreferences,
   storeSyncMeta,
+  requestStoragePersistence,
+  type StoragePersistenceDiagnostic,
 } from "@/lib/db";
 import {
   translate,
@@ -585,6 +587,7 @@ interface AppContextType {
   pendingUploadsCount: number;
   failedUploadsCount: number;
   lastSyncError: string | null;
+  storagePersistence: StoragePersistenceDiagnostic | null;
   refreshCloudStats: () => Promise<void>;
   syncNow: (force?: boolean) => Promise<void>;
 
@@ -663,6 +666,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [pendingUploadsCount, setPendingUploadsCount] = useState(0);
   const [failedUploadsCount, setFailedUploadsCount] = useState(0);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
+  const [storagePersistence, setStoragePersistence] = useState<StoragePersistenceDiagnostic | null>(null);
+
+  useEffect(() => {
+    void requestStoragePersistence().then(setStoragePersistence);
+  }, []);
   const retryBackoffMs = useRef(2000);
   const [addSheet, setAddSheet] = useState<AddSheetState>({ open: false });
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -3983,6 +3991,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     pendingUploadsCount,
     failedUploadsCount,
     lastSyncError,
+    storagePersistence,
     refreshCloudStats,
     syncNow,
     addSheet,

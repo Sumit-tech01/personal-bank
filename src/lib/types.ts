@@ -23,6 +23,10 @@ export interface BaseRecord {
   deletedAt?: ISODateTime;
   /** Local-only flag: record has changes that have not reached the cloud yet. */
   dirty?: boolean;
+  /** Server-assigned monotonic version number */
+  version?: number;
+  /** Client base version upon which modifications were made */
+  baseVersion?: number;
 }
 
 export type PaymentMethod = "CASH" | "UPI" | "BANK" | "CARD" | "OTHER";

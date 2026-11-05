@@ -64,6 +64,7 @@ export async function syncWithCloud(input: {
         id: record.id,
         entity: record.entity,
         updatedAt: record.updatedAt,
+        baseVersion: record.version ?? record.baseVersion,
         data: record,
       })),
     }),

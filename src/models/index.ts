@@ -11,6 +11,8 @@ export interface ISyncRecord extends Document {
   recordId: string;
   entity: string;
   updatedAt: string;
+  version?: number;
+  serverUpdatedAt?: Date;
   data: Record<string, unknown>;
   createdAt: Date;
   lastSeenAt: Date;
@@ -22,6 +24,8 @@ const SyncRecordSchema = new Schema<ISyncRecord>(
     recordId: { type: String, required: true },
     entity: { type: String, required: true },
     updatedAt: { type: String, required: true },
+    version: { type: Number, default: 1 },
+    serverUpdatedAt: { type: Date, default: Date.now },
     data: { type: Schema.Types.Mixed, required: true },
     lastSeenAt: { type: Date, default: Date.now },
   },
